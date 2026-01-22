@@ -4,7 +4,7 @@ class LogTag {
   const LogTag(this.label);
 
   static const LogTag none = LogTag('');
-	@deprecated
+  @deprecated
   static const LogTag general = LogTag('GENERAL');
 
   // Layers
@@ -15,7 +15,7 @@ class LogTag {
   static const LogTag repository = LogTag('REPO');
   static const LogTag network = LogTag('NETWORK');
   static const LogTag database = LogTag('DB');
-	static const LogTag mqtt = LogTag('MQTT');
+  static const LogTag mqtt = LogTag('MQTT');
 
   // Features
   static const LogTag navigation = LogTag('NAV');
@@ -43,7 +43,7 @@ class LogTag {
     order,
     payment,
     printer,
-		mqtt,
+    mqtt,
   ];
 
   @override

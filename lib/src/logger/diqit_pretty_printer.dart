@@ -20,9 +20,9 @@ class DPrettyPrinter extends PrettyPrinter {
   });
 
   factory DPrettyPrinter.trace({
-		int methodCount = 5,
-		int stackTraceBeginIndex = 2,
-	}) {
+    int methodCount = 5,
+    int stackTraceBeginIndex = 2,
+  }) {
     return DPrettyPrinter(
       methodCount: methodCount,
       stackTraceBeginIndex: stackTraceBeginIndex,

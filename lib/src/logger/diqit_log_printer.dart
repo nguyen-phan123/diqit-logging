@@ -4,7 +4,7 @@ import 'log_tag.dart';
 
 class DiqitLogPrinter extends LogPrinter {
   final LogPrinter _realPrinter;
-	final String prefix;
+  final String prefix;
 
   DiqitLogPrinter(this._realPrinter, {this.prefix = ""});
 
@@ -14,7 +14,7 @@ class DiqitLogPrinter extends LogPrinter {
       final msg = event.message as DLogMessage;
       // Decorate message: [TAG] :: content
       final decoratedMessage = _formatMessage(msg);
-      
+
       // Create a shadow event with decorated string
       final decoratedEvent = LogEvent(
         event.level,
@@ -22,7 +22,7 @@ class DiqitLogPrinter extends LogPrinter {
         error: event.error,
         stackTrace: event.stackTrace,
       );
-      
+
       return _realPrinter.log(decoratedEvent);
     }
 
