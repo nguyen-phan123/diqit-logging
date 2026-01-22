@@ -1,33 +1,33 @@
-class DLogTag {
+class LogTag {
   final String label;
 
-  const DLogTag(this.label);
+  const LogTag(this.label);
 
-  static const DLogTag none = DLogTag('');
+  static const LogTag none = LogTag('');
 	@deprecated
-  static const DLogTag general = DLogTag('GENERAL');
+  static const LogTag general = LogTag('GENERAL');
 
   // Layers
-  static const DLogTag ui = DLogTag('UI');
-  static const DLogTag bloc = DLogTag('BLOC');
-  static const DLogTag state = DLogTag('STATE');
-  static const DLogTag usecase = DLogTag('USECASE');
-  static const DLogTag repository = DLogTag('REPO');
-  static const DLogTag network = DLogTag('NETWORK');
-  static const DLogTag database = DLogTag('DB');
-	static const DLogTag mqtt = DLogTag('MQTT');
+  static const LogTag ui = LogTag('UI');
+  static const LogTag bloc = LogTag('BLOC');
+  static const LogTag state = LogTag('STATE');
+  static const LogTag usecase = LogTag('USECASE');
+  static const LogTag repository = LogTag('REPO');
+  static const LogTag network = LogTag('NETWORK');
+  static const LogTag database = LogTag('DB');
+	static const LogTag mqtt = LogTag('MQTT');
 
   // Features
-  static const DLogTag navigation = DLogTag('NAV');
-  static const DLogTag event = DLogTag('EVENT');
-  static const DLogTag sync = DLogTag('SYNC');
-  static const DLogTag order = DLogTag('ORDER');
-  static const DLogTag payment = DLogTag('PAYMENT');
-  static const DLogTag printer = DLogTag('PRINTER');
+  static const LogTag navigation = LogTag('NAV');
+  static const LogTag event = LogTag('EVENT');
+  static const LogTag sync = LogTag('SYNC');
+  static const LogTag order = LogTag('ORDER');
+  static const LogTag payment = LogTag('PAYMENT');
+  static const LogTag printer = LogTag('PRINTER');
 
-  factory DLogTag.custom(String label) => DLogTag(label);
+  factory LogTag.custom(String label) => LogTag(label);
 
-  static const List<DLogTag> values = [
+  static const List<LogTag> values = [
     none,
     general,
     ui,
@@ -49,7 +49,7 @@ class DLogTag {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is DLogTag &&
+      other is LogTag &&
           runtimeType == other.runtimeType &&
           label == other.label;
 

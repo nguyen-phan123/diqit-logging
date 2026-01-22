@@ -5,7 +5,7 @@ import 'log_tag.dart';
 import 'logger_config.dart';
 
 class DLogFilter extends LogFilter {
-  final DLoggerConfig config;
+  final LoggerConfig config;
 
   DLogFilter(this.config);
 
@@ -17,7 +17,7 @@ class DLogFilter extends LogFilter {
 
     if (event.message is DLogMessage) {
       final msg = event.message as DLogMessage;
-      if (msg.tag == DLogTag.none) return true;
+      if (msg.tag == LogTag.none) return true;
       return config.isTagEnabled(msg.tag);
     }
 

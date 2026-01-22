@@ -11,7 +11,7 @@ class DiqitLogger {
   static final DiqitLogger _instance = DiqitLogger._();
 
   // * --- Configuration State ---
-  late DLoggerConfig _config;
+  late LoggerConfig _config;
   bool _initialized = false;
 
   // * --- internal Logger Instance ---
@@ -25,7 +25,7 @@ class DiqitLogger {
 
   // * --- Static Public API ---
 
-  static Future<void> initialize(DLoggerConfig config) async {
+  static Future<void> initialize(LoggerConfig config) async {
     await _instance._initializeInternal(config);
   }
 
@@ -40,7 +40,7 @@ class DiqitLogger {
 
   // * --- Internal Implementation Methods ---
 
-  Future<void> _initializeInternal(DLoggerConfig config) async {
+  Future<void> _initializeInternal(LoggerConfig config) async {
     _activeLogger?.close();
 
     _config = config;
@@ -146,13 +146,13 @@ class DiqitLogger {
   void _log(
     Level level,
     String message,
-    DLogTag tag,
+    LogTag tag,
     dynamic error,
     StackTrace? stackTrace, {
     DPrettyPrinter? printer,
   }) {
     if (!_initialized) {
-      _config = DLoggerConfig.development();
+      _config = LoggerConfig.development();
       _initialized = true;
       _activeLogger = _createLoggerInstance();
     }
@@ -177,7 +177,7 @@ class DiqitLogger {
 
   static void t(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -191,7 +191,7 @@ class DiqitLogger {
 
   static void trace(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -209,7 +209,7 @@ class DiqitLogger {
 
   static void d(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -223,7 +223,7 @@ class DiqitLogger {
 
   static void debug(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -237,7 +237,7 @@ class DiqitLogger {
 
   static void i(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -251,7 +251,7 @@ class DiqitLogger {
 
   static void info(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -265,7 +265,7 @@ class DiqitLogger {
 
   static void w(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -279,7 +279,7 @@ class DiqitLogger {
 
   static void warning(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
       _instance._log(
@@ -293,7 +293,7 @@ class DiqitLogger {
 
   static void e(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
@@ -309,7 +309,7 @@ class DiqitLogger {
 
   static void error(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
@@ -329,7 +329,7 @@ class DiqitLogger {
 
   static void ft(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
@@ -345,7 +345,7 @@ class DiqitLogger {
 
   static void fatal(
     String message, {
-    DLogTag tag = DLogTag.none,
+    LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,

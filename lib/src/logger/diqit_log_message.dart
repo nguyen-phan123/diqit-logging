@@ -2,9 +2,9 @@ import 'log_tag.dart';
 
 class DLogMessage {
   final String message;
-  final DLogTag tag;
+  final LogTag tag;
 
-  const DLogMessage(this.message, [this.tag = DLogTag.none]);
+  const DLogMessage(this.message, [this.tag = LogTag.none]);
 
   @override
   String toString() => message;
