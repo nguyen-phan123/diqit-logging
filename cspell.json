@@ -1,0 +1,21 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+  "Diqit",
+  "diqit",
+  "DiqitLogger",    
+  "DiqitLoggerImpl", 
+  "pubspec",       
+  "yaml",           
+  "datetime",       
+  "repo",         
+  "config"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    ".git",
+    "*.lock",
+    "pubspec.lock"
+  ]
+}
