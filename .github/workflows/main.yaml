@@ -32,14 +32,14 @@ jobs:
         uses: kuhnroyal/flutter-fvm-config-action@v2
 
       - name: 📦 Install Dependencies
-        run: dart pub get
+        run: flutter pub get
 
       - name: ✨ Check Formatting
-        run: dart format --set-exit-if-changed .
+        run: flutter format --set-exit-if-changed .
 
       - name: 🔍 Analyze
-        run: dart analyze
+        run: flutter analyze
 
       # - name: 🧪 Run Tests
-      #   run: dart test
+      #   run: flutter test
 
