@@ -1,6 +1,6 @@
 import 'dart:io';
+import 'package:diqit_logging/src/logger/logger.dart';
 import 'package:logger/logger.dart';
-import 'logger/logger.dart';
 
 /// {@template diqit_logging}
 /// My new Dart package
@@ -41,7 +41,7 @@ class DiqitLogger {
   // * --- Internal Implementation Methods ---
 
   Future<void> _initializeInternal(LoggerConfig config) async {
-    _activeLogger?.close();
+    await _activeLogger?.close();
 
     _config = config;
     _initialized = true;
@@ -62,7 +62,7 @@ class DiqitLogger {
   }
 
   String _exportLogsInternal({int? lastN}) {
-    List<OutputEvent> entries = _memoryOutput.buffer.toList();
+    var entries = _memoryOutput.buffer.toList();
     if (lastN != null && entries.length > lastN) {
       entries = entries.sublist(entries.length - lastN);
     }
@@ -73,7 +73,7 @@ class DiqitLogger {
     buffer.writeln('=' * 50);
 
     for (final event in entries) {
-      for (var line in event.lines) {
+      for (final line in event.lines) {
         buffer.writeln(line);
       }
       buffer.writeln('-' * 20);
@@ -122,7 +122,7 @@ class DiqitLogger {
 
     try {
       final directory = Directory(logDir);
-      if (!await directory.exists()) {
+      if (!directory.existsSync()) {
         await directory.create(recursive: true);
       }
 

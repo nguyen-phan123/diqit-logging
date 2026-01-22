@@ -2,3 +2,14 @@ include: package:very_good_analysis/analysis_options.6.0.0.yaml
 linter:
   rules:
     public_member_api_docs: false
+    avoid_redundant_argument_values: false
+    prefer_const_constructors: false
+    sort_constructors_first: false
+    avoid_print: false
+    require_trailing_commas: false
+    cascade_invocations: false
+    provide_deprecation_message: false
+    deprecated_member_use_from_same_package: false
+    avoid_equals_and_hash_code_on_mutable_classes: false
+    avoid_positional_boolean_parameters: false
+

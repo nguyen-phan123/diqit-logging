@@ -29,7 +29,6 @@ class LogTag {
 
   static const List<LogTag> values = [
     none,
-    general,
     ui,
     bloc,
     state,

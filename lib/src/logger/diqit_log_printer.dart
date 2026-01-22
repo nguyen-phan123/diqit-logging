@@ -1,12 +1,12 @@
+import 'package:diqit_logging/src/logger/diqit_log_message.dart';
+import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:logger/logger.dart';
-import 'diqit_log_message.dart';
-import 'log_tag.dart';
 
 class DiqitLogPrinter extends LogPrinter {
   final LogPrinter _realPrinter;
   final String prefix;
 
-  DiqitLogPrinter(this._realPrinter, {this.prefix = ""});
+  DiqitLogPrinter(this._realPrinter, {this.prefix = ''});
 
   @override
   List<String> log(LogEvent event) {

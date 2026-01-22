@@ -1,8 +1,7 @@
+import 'package:diqit_logging/src/logger/diqit_log_message.dart';
+import 'package:diqit_logging/src/logger/log_tag.dart';
+import 'package:diqit_logging/src/logger/logger_config.dart';
 import 'package:logger/logger.dart';
-
-import 'diqit_log_message.dart';
-import 'log_tag.dart';
-import 'logger_config.dart';
 
 class DLogFilter extends LogFilter {
   final LoggerConfig config;

@@ -1,8 +1,7 @@
+import 'package:diqit_logging/src/logger/diqit_log_printer.dart';
+import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
+import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:logger/logger.dart';
-
-import 'diqit_log_printer.dart';
-import 'diqit_pretty_printer.dart';
-import 'log_tag.dart';
 
 class LoggerConfig {
   Level minLogLevel;
@@ -23,7 +22,7 @@ class LoggerConfig {
     Set<LogTag>? enabledTags,
     LogPrinter? printer,
     this.output,
-    this.prefixMessage = "",
+    this.prefixMessage = '',
     this.allowCustomTags = false,
   })  : enabledTags = enabledTags ?? Set.from(LogTag.values),
         printer = printer ??
@@ -33,7 +32,7 @@ class LoggerConfig {
             );
 
   factory LoggerConfig.production(
-      {String? logDirectory, String prefixMessage = ""}) {
+      {String? logDirectory, String prefixMessage = ''}) {
     return LoggerConfig(
       minLogLevel: Level.warning,
       enableConsoleLogging: true,
@@ -53,7 +52,7 @@ class LoggerConfig {
   }
 
   factory LoggerConfig.development(
-      {String? logDirectory, String prefixMessage = ""}) {
+      {String? logDirectory, String prefixMessage = ''}) {
     return LoggerConfig(
       minLogLevel: Level.debug,
       enableConsoleLogging: true,
