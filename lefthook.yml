@@ -6,4 +6,4 @@ pre-commit:
       run: dart format {staged_files}
       stage_fixed: true
     analyze:
-      run: dart analyze --fatal-infos
+      run: dart analyze --fatal-infos --fatal-warnings lib test
