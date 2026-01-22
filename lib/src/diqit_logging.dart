@@ -83,7 +83,7 @@ class DiqitLogger {
 
   void _setConsoleLoggingInternal(bool enabled) {
     if (!_initialized) return;
-    _config.enableConsoleLogging = enabled;
+    _config = _config.copyWith(enableConsoleLogging: enabled);
     _activeLogger = _createLoggerInstance();
   }
 
