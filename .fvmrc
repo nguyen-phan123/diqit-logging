@@ -1,0 +1,7 @@
+{
+  "flutter": "3.16.5",
+  "flavors": {
+    "dev": "3.7.10",
+    "production": "3.7.10"
+  }
+}

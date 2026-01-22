@@ -1,0 +1,10 @@
+{
+  "dart.flutterSdkPath": ".fvm/versions/3.7.10",
+  "dart.sdkPath": ".fvm/flutter_sdk/bin/cache/dart-sdk",
+  "search.exclude": {
+    "**/.fvm": true
+  },
+  "files.watcherExclude": {
+    "**/.fvm": true
+  }
+}
