@@ -1,62 +1,129 @@
 # Diqit Logging
 
-[![style: very good analysis][very_good_analysis_badge]][very_good_analysis_link]
-[![Powered by Mason](https://img.shields.io/endpoint?url=https%3A%2F%2Ftinyurl.com%2Fmason-badge)](https://github.com/felangel/mason)
-[![License: MIT][license_badge]][license_link]
+A powerful, singleton-based logging wrapper for Dart/Flutter applications, designed to provide unified logging with support for multiple outputs, smart tagging, and flexible printing modes.
 
-My new Dart package
+## ✨ Features
 
-## Installation 💻
+- **Singleton Architecture**: Global access via static methods—no need to pass logger instances around.
+- **Dual Printer Modes**:
+  - **Short/Clean**: For everyday development (less noise).
+  - **Full/Trace**: For deep debugging (includes stack trace and method info).
+- **Smart Tagging**: Categorize logs using `LogTag` (e.g., `LogTag.network`, `LogTag.database`).
+- **File Logging**: Automatically writes logs to the file system (configurable).
+- **Memory History**: Keeps a buffer of recent logs for in-app viewing or export.
+- **Unified Interface**: Simple static methods like `DiqitLogger.i()`, `DiqitLogger.error()`.
 
-**❗ In order to start using Diqit Logging you must have the [Dart SDK][dart_install_link] installed on your machine.**
+---
 
-Install via `dart pub add`:
+## 💻 Installation
 
-```sh
-dart pub add diqit_logging
+Add this package to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  diqit_logging:
+    git:
+      url: https://github.com/nguyen-phan123/diqit-logging.git
+      path: packages/diqit_logging
 ```
 
 ---
 
-## Continuous Integration 🤖
+## 🚀 Usage
 
-Diqit Logging comes with a built-in [GitHub Actions workflow][github_actions_link] powered by [Very Good Workflows][very_good_workflows_link] but you can also add your preferred CI/CD solution.
+### 1. Initialization
 
-Out of the box, on each pull request and push, the CI `formats`, `lints`, and `tests` the code. This ensures the code remains consistent and behaves correctly as you add functionality or make changes. The project uses [Very Good Analysis][very_good_analysis_link] for a strict set of analysis options used by our team. Code coverage is enforced using the [Very Good Workflows][very_good_coverage_link].
+Initialize the logger once at the start of your app (e.g., in `main.dart`).
+
+```dart
+import 'package:diqit_logging/diqit_logging.dart';
+
+void main() async {
+  // Create configuration
+  final config = LoggerConfig(
+    enableConsoleLogging: true,
+    enableFileLogging: true,
+    logDirectory: 'path/to/app/documents/logs', // Optional
+  );
+  
+  // Initialize
+  await DiqitLogger.initialize(config);
+
+  runApp(MyApp());
+}
+```
+
+### 2. Basic Logging
+
+Use the **short commands** (`t`, `d`, `i`, `w`, `e`, `ft`) for clean, concise logs.
+
+```dart
+DiqitLogger.i('Application started'); // Info
+DiqitLogger.d('User 123 logged in', tag: LogTag.auth); // Debug with Tag
+DiqitLogger.w('Connection slow', tag: LogTag.network); // Warning
+```
+
+### 3. Deep Debugging
+
+Use the **full words** (`trace`, `debug`, `info`, `warning`, `error`, `fatal`) when you need stack traces and caller info.
+
+```dart
+try {
+  fetchData();
+} catch (e, stack) {
+  // Logs error with full stack trace and method count
+  DiqitLogger.error('API call failed', error: e, stackTrace: stack, tag: LogTag.network);
+}
+```
+
+### 4. Advanced Features
+
+#### Export Logs
+You can export the in-memory log history to a string (useful for "Report a Bug" features).
+
+```dart
+String report = DiqitLogger.exportLogs(lastN: 100);
+// Send report to server...
+```
+
+#### Runtime Control
+Toggle console logging on/off dynamically:
+
+```dart
+DiqitLogger.setConsoleLogging(false); // Silence console logs
+```
 
 ---
 
-## Running Tests 🧪
+## 🏷️ Log Tags
 
-To run all unit tests:
+Use `LogTag` to categorize your logs. Available tags:
 
-```sh
-dart pub global activate coverage 1.2.0
-dart test --coverage=coverage
-dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info
-```
+- `LogTag.none` (default)
+- `LogTag.ui`
+- `LogTag.bloc`
+- `LogTag.repo`
+- `LogTag.network`
+- `LogTag.database`
+- `LogTag.mqtt`
+- `LogTag.auth`
+- ... and more.
 
-To view the generated coverage report you can use [lcov](https://github.com/linux-test-project/lcov).
+---
 
-```sh
-# Generate Coverage Report
-genhtml coverage/lcov.info -o coverage/
+## 🛠️ Comparison: Short vs Full API
 
-# Open Coverage Report
-open coverage/index.html
-```
+| Level | Short API (Clean) | Full API (Trace Info) |
+|-------|-------------------|-----------------------|
+| Trace | `t()` | `trace()` |
+| Debug | `d()` | `debug()` |
+| Info | `i()` | `info()` |
+| Warning | `w()` | `warning()` |
+| Error | `e()` | `error()` |
+| Fatal | `ft()` | `fatal()` |
 
-[dart_install_link]: https://dart.dev/get-dart
-[github_actions_link]: https://docs.github.com/en/actions/learn-github-actions
-[license_badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[license_link]: https://opensource.org/licenses/MIT
-[logo_black]: https://raw.githubusercontent.com/VGVentures/very_good_brand/main/styles/README/vgv_logo_black.png#gh-light-mode-only
-[logo_white]: https://raw.githubusercontent.com/VGVentures/very_good_brand/main/styles/README/vgv_logo_white.png#gh-dark-mode-only
-[mason_link]: https://github.com/felangel/mason
-[very_good_analysis_badge]: https://img.shields.io/badge/style-very_good_analysis-B22C89.svg
-[very_good_analysis_link]: https://pub.dev/packages/very_good_analysis
-[very_good_coverage_link]: https://github.com/marketplace/actions/very-good-coverage
-[very_good_ventures_link]: https://verygood.ventures
-[very_good_ventures_link_light]: https://verygood.ventures#gh-light-mode-only
-[very_good_ventures_link_dark]: https://verygood.ventures#gh-dark-mode-only
-[very_good_workflows_link]: https://github.com/VeryGoodOpenSource/very_good_workflows
+---
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for details.
