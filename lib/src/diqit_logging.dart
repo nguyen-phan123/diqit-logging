@@ -109,7 +109,7 @@ class DiqitLogger {
 
   /// Internal helper to construct the Logger
   Logger _createLoggerInstance({
-    DPrettyPrinter? printer,
+    LogPrinter? printer,
     LogFilter? filter,
   }) {
     final outputs = <LogOutput>[];
@@ -130,10 +130,18 @@ class DiqitLogger {
       outputs.add(_fileOutput!);
     }
 
+    var finalPrinter = _config.printer;
+
+    // If an ephemeral printer is provided (e.g. via static methods),
+    // wrap it to ensure Diqit features (prefix, tags) still work.
+    if (printer != null) {
+      finalPrinter = DiqitLogPrinter(printer, prefix: _config.prefixMessage);
+    }
+
     return Logger(
       level: Level.all, // Để Filter quyết định
       filter: filter ?? DLogFilter(_config),
-      printer: printer ?? _config.printer,
+      printer: finalPrinter,
       output: MultiOutput(outputs),
     );
   }
