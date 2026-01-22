@@ -3,7 +3,20 @@ import 'package:diqit_logging/src/logger/logger.dart';
 import 'package:logger/logger.dart';
 
 /// {@template diqit_logging}
-/// My new Dart package
+/// A singleton logger wrapper offering a unified logging interface.
+///
+/// Features:
+/// - **Singleton**: Global access via static methods.
+/// - **Tag Support**: Categorize logs with [LogTag].
+/// - **Dual Printers**: Short methods (e.g., [t], [d]) use a clean printer;
+///   full methods (e.g., [trace], [debug]) use a detailed trace printer.
+/// - **File Logging**: Optional file logging configured via [initialize].
+///
+/// Usage:
+/// ```dart
+/// await DiqitLogger.initialize(loggerConfig);
+/// DiqitLogger.i('App started');
+/// ```
 /// {@endtemplate}
 class DiqitLogger {
   /// {@macro diqit_logging}
@@ -25,16 +38,29 @@ class DiqitLogger {
 
   // * --- Static Public API ---
 
+  /// Initializes the logger with the provided [config].
+  ///
+  /// This must be called before any logging occurs to ensure proper setup,
+  /// especially for file logging or custom printers.
   static Future<void> initialize(LoggerConfig config) async {
     await _instance._initializeInternal(config);
   }
 
+  /// Dynamically enables or disables console logging.
+  ///
+  /// Useful for toggling log output at runtime without re-initializing.
   static void setConsoleLogging(bool enabled) =>
       _instance._setConsoleLoggingInternal(enabled);
 
+  /// Returns a list of recent log events kept in the memory buffer.
+  ///
+  /// The buffer size is limited (default 1000). Useful for viewing logs inside the app (e.g. debug page).
   static List<OutputEvent> getLogHistory() =>
       _instance._memoryOutput.buffer.toList();
 
+  /// Exports the recent logs as a formatted string.
+  ///
+  /// [lastN] - Optional: Limit to the last N lines.
   static String exportLogs({int? lastN}) =>
       _instance._exportLogsInternal(lastN: lastN);
 
@@ -175,6 +201,9 @@ class DiqitLogger {
     }
   }
 
+  /// Logs a [Level.trace] message (Verbose).
+  ///
+  /// **Short Version**: Uses Reduced-Noise printer for cleaner output.
   static void t(
     String message, {
     LogTag tag = LogTag.none,
@@ -189,6 +218,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.cleanNoise(),
       );
 
+  /// Logs a [Level.trace] message (Verbose).
+  ///
+  /// **Full Version**: Uses Trace printer with method stack trace info.
   static void trace(
     String message, {
     LogTag tag = LogTag.none,
@@ -207,6 +239,9 @@ class DiqitLogger {
             ),
       );
 
+  /// Logs a [Level.debug] message.
+  ///
+  /// **Short Version**: Uses Reduced-Noise printer for cleaner output.
   static void d(
     String message, {
     LogTag tag = LogTag.none,
@@ -221,6 +256,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.cleanNoise(),
       );
 
+  /// Logs a [Level.debug] message.
+  ///
+  /// **Full Version**: Uses printer with basic trace info.
   static void debug(
     String message, {
     LogTag tag = LogTag.none,
@@ -235,6 +273,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.trace(),
       );
 
+  /// Logs a [Level.info] message.
+  ///
+  /// **Short Version**: Uses Reduced-Noise printer for cleaner output.
   static void i(
     String message, {
     LogTag tag = LogTag.none,
@@ -249,6 +290,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.cleanNoise(),
       );
 
+  /// Logs a [Level.info] message.
+  ///
+  /// **Full Version**: Uses printer with basic trace info.
   static void info(
     String message, {
     LogTag tag = LogTag.none,
@@ -263,6 +307,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.trace(),
       );
 
+  /// Logs a [Level.warning] message.
+  ///
+  /// **Short Version**: Uses Reduced-Noise printer for cleaner output.
   static void w(
     String message, {
     LogTag tag = LogTag.none,
@@ -277,6 +324,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.cleanNoise(),
       );
 
+  /// Logs a [Level.warning] message.
+  ///
+  /// **Full Version**: Uses printer with basic trace info.
   static void warning(
     String message, {
     LogTag tag = LogTag.none,
@@ -291,6 +341,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.trace(),
       );
 
+  /// Logs a [Level.error] message.
+  ///
+  /// **Short Version**: Uses Reduced-Noise printer.
   static void e(
     String message, {
     LogTag tag = LogTag.none,
@@ -307,6 +360,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.cleanNoise(),
       );
 
+  /// Logs a [Level.error] message.
+  ///
+  /// **Full Version**: Uses Trace printer with deep stack trace (method count 8).
   static void error(
     String message, {
     LogTag tag = LogTag.none,
@@ -327,6 +383,9 @@ class DiqitLogger {
             ),
       );
 
+  /// Logs a [Level.fatal] message (Critical failure).
+  ///
+  /// **Short Version**: Uses Reduced-Noise printer.
   static void ft(
     String message, {
     LogTag tag = LogTag.none,
@@ -343,6 +402,9 @@ class DiqitLogger {
         printer: printer ?? DPrettyPrinter.cleanNoise(),
       );
 
+  /// Logs a [Level.fatal] message (Critical failure).
+  ///
+  /// **Full Version**: Uses Trace printer with deep stack trace (method count 8).
   static void fatal(
     String message, {
     LogTag tag = LogTag.none,
