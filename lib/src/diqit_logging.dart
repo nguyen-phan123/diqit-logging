@@ -55,7 +55,8 @@ class DiqitLogger {
 
   /// Returns a list of recent log events kept in the memory buffer.
   ///
-  /// The buffer size is limited. Useful for viewing logs inside the app (e.g. debug page).
+  /// The buffer size is limited. Useful for viewing logs inside the app
+  /// (e.g. debug page).
   static List<OutputEvent> getLogHistory() =>
       _instance._historyManager.getLogHistory();
 
@@ -107,7 +108,7 @@ class DiqitLogger {
       outputs.add(_fileManager.output!);
     }
 
-    LogPrinter finalPrinter = _config.printer;
+    var finalPrinter = _config.printer;
 
     // If an ephemeral printer is provided (e.g. via static methods),
     // wrap it to ensure Diqit features (prefix, tags) still work.
