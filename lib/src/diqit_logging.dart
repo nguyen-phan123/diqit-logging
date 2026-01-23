@@ -152,14 +152,6 @@ class DiqitLogger {
       finalPrinter = DiqitLogPrinter(printer, prefix: _config.prefixMessage);
     }
 
-    var finalPrinter = _config.printer;
-
-    // If an ephemeral printer is provided (e.g. via static methods),
-    // wrap it to ensure Diqit features (prefix, tags) still work.
-    if (printer != null) {
-      finalPrinter = DiqitLogPrinter(printer, prefix: _config.prefixMessage);
-    }
-
     return Logger(
       level: Level.all, // Filter decides
       filter: filter ?? DLogFilter(_config),
