@@ -33,6 +33,6 @@ class DiqitLogPrinter extends LogPrinter {
     if (msg.tag == LogTag.none || msg.tag.label.isEmpty) {
       return '$prefix${msg.message}';
     }
-    return '$prefix[${msg.tag.label}] :: ${msg.message}';
+    return '$prefix [${msg.tag.label}] :: ${msg.message}';
   }
 }
