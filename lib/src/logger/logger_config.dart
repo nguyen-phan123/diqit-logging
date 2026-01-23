@@ -3,6 +3,9 @@ import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:logger/logger.dart';
 
+typedef LogTagFilter = bool Function(LogTag tag);
+typedef LogLevel = Level;
+
 /// Configuration for DiqitLogger.
 ///
 /// Use factory constructors for common setups:
@@ -40,9 +43,10 @@ class LoggerConfig {
   factory LoggerConfig.development({
     String? logDirectory,
     String prefixMessage = '',
+    LogLevel? minLogLevel,
   }) {
     return LoggerConfig(
-      minLogLevel: Level.debug,
+      minLogLevel: minLogLevel ?? LogLevel.debug,
       enableConsoleLogging: true,
       enableFileLogging: false,
       logDirectory: logDirectory,
@@ -57,9 +61,10 @@ class LoggerConfig {
   factory LoggerConfig.production({
     String? logDirectory,
     String prefixMessage = '',
+    LogLevel? minLogLevel,
   }) {
     return LoggerConfig(
-      minLogLevel: Level.warning,
+      minLogLevel: minLogLevel ?? LogLevel.warning,
       enableConsoleLogging: true,
       enableFileLogging: true,
       logDirectory: logDirectory,
@@ -169,7 +174,7 @@ class LoggerConfig {
   // ---------------------------------------------------------------------------
 
   static LogPrinter _defaultPrinter(String prefix) => DiqitLogPrinter(
-        DPrettyPrinter.cleanNoise(),
+        DPrettyPrinter.minimal(),
         prefix: prefix,
       );
 

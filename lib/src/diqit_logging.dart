@@ -223,7 +223,7 @@ class DiqitLogger {
         tag,
         null,
         null,
-        printer: printer ?? DPrettyPrinter.cleanNoise(),
+        printer: printer ?? DPrettyPrinter.minimal(),
       );
 
   /// Logs a [Level.trace] message (Verbose).
@@ -261,7 +261,7 @@ class DiqitLogger {
         tag,
         null,
         null,
-        printer: printer ?? DPrettyPrinter.cleanNoise(),
+        printer: printer ?? DPrettyPrinter.minimal(),
       );
 
   /// Logs a [Level.debug] message.
@@ -295,7 +295,7 @@ class DiqitLogger {
         tag,
         null,
         null,
-        printer: printer ?? DPrettyPrinter.cleanNoise(),
+        printer: printer ?? DPrettyPrinter.minimal(),
       );
 
   /// Logs a [Level.info] message.
@@ -329,7 +329,7 @@ class DiqitLogger {
         tag,
         null,
         null,
-        printer: printer ?? DPrettyPrinter.cleanNoise(),
+        printer: printer ?? DPrettyPrinter.minimal(),
       );
 
   /// Logs a [Level.warning] message.
@@ -365,7 +365,7 @@ class DiqitLogger {
         tag,
         error,
         stackTrace,
-        printer: printer ?? DPrettyPrinter.cleanNoise(),
+        printer: printer ?? DPrettyPrinter.minimal(),
       );
 
   /// Logs a [Level.error] message.
@@ -407,7 +407,7 @@ class DiqitLogger {
         tag,
         error,
         stackTrace,
-        printer: printer ?? DPrettyPrinter.cleanNoise(),
+        printer: printer ?? DPrettyPrinter.minimal(),
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
