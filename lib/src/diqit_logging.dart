@@ -47,6 +47,26 @@ class DiqitLogger {
     await _instance._initializeInternal(config);
   }
 
+  /// Updates the logger configuration at runtime.
+  ///
+  /// This allows you to modify the logger's behavior after initialization
+  /// without needing to call [initialize] again. Useful for:
+  /// - Enabling/disabling specific tags via [LoggerConfig.withTagsDisabled]
+  /// - Changing log levels
+  /// - Updating prefix messages
+  ///
+  /// Example:
+  /// ```dart
+  /// await DiqitLogger.initialize(LoggerConfig.development());
+  ///
+  /// // Later, disable UI logs
+  /// final newConfig = LoggerConfig.development().withTagsDisabled(['UI']);
+  /// await DiqitLogger.updateConfig(newConfig);
+  /// ```
+  static Future<void> updateConfig(LoggerConfig config) async {
+    await _instance._updateConfigInternal(config);
+  }
+
   /// Dynamically enables or disables console logging.
   ///
   /// Useful for toggling log output at runtime without re-initializing.
@@ -73,6 +93,22 @@ class DiqitLogger {
 
     _config = config;
     _initialized = true;
+
+    await _fileManager.initialize(config);
+
+    _activeLogger = _createLoggerInstance();
+  }
+
+  Future<void> _updateConfigInternal(LoggerConfig config) async {
+    if (!_initialized) {
+      // If not initialized yet, just call initialize
+      await _initializeInternal(config);
+      return;
+    }
+
+    await _activeLogger?.close();
+
+    _config = config;
 
     await _fileManager.initialize(config);
 

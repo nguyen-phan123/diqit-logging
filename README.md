@@ -93,6 +93,28 @@ Toggle console logging on/off dynamically:
 DiqitLogger.setConsoleLogging(false); // Silence console logs
 ```
 
+#### Update Configuration at Runtime
+You can update the logger configuration after initialization using `updateConfig()`. This is particularly useful for enabling/disabling specific log tags:
+
+```dart
+// Initialize with all tags enabled
+await DiqitLogger.initialize(LoggerConfig.development());
+
+// Later, disable specific tags (e.g., UI, BLOC)
+final newConfig = LoggerConfig.development().withTagsDisabled(['UI', 'BLOC']);
+await DiqitLogger.updateConfig(newConfig);
+
+// Now UI and BLOC logs will be filtered out
+DiqitLogger.i('This will NOT appear', tag: LogTag.ui);
+DiqitLogger.i('This WILL appear', tag: LogTag.network);
+
+// Re-enable tags
+final updatedConfig = newConfig.withTagsEnabled(['UI']);
+await DiqitLogger.updateConfig(updatedConfig);
+```
+
+**Note**: Before this feature, you had to call `initialize()` again to update the config. Now `updateConfig()` provides a cleaner way to modify logger behavior at runtime.
+
 ---
 
 ## 🏷️ Log Tags

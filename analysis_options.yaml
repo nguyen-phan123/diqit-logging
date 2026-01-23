@@ -12,4 +12,4 @@ linter:
     deprecated_member_use_from_same_package: false
     avoid_equals_and_hash_code_on_mutable_classes: false
     avoid_positional_boolean_parameters: false
-    unused_local_variable: false
+    prefer_final_locals: false

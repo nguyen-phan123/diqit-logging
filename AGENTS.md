@@ -58,7 +58,7 @@ Managed via `lefthook.yml` (run automatically on commit):
 ## 📝 Code Style Guidelines
 
 ### Linting
-- Uses **very_good_analysis 6.0.0** (strict Dart linting)
+- Uses **very_good_analysis 5.1.0** (strict Dart linting)
 - Analysis options in `analysis_options.yaml`
 - Disabled rules:
   - `public_member_api_docs: false` (private package)

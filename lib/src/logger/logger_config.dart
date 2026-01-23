@@ -17,6 +17,7 @@ class LoggerConfig {
   final bool enableFileLogging;
   final String? logDirectory;
   final Set<LogTag> enabledTags;
+  final Set<LogTag> disabledTags;
   final LogPrinter printer;
   final LogOutput? output;
   final String prefixMessage;
@@ -28,11 +29,13 @@ class LoggerConfig {
     this.enableFileLogging = false,
     this.logDirectory,
     Set<LogTag>? enabledTags,
+    Set<LogTag>? disabledTags,
     LogPrinter? printer,
     this.output,
     this.prefixMessage = '',
     this.allowCustomTags = false,
   })  : enabledTags = enabledTags ?? Set.from(LogTag.values),
+        disabledTags = disabledTags ?? {},
         printer = printer ?? _defaultPrinter(prefixMessage);
 
   // ---------------------------------------------------------------------------
@@ -58,13 +61,10 @@ class LoggerConfig {
   }
 
   /// Production config: warnings+, critical tags only, file logging enabled.
-  factory LoggerConfig.production({
-    String? logDirectory,
-    String prefixMessage = '',
-    LogLevel? minLogLevel,
-  }) {
+  factory LoggerConfig.production(
+      {String? logDirectory, String prefixMessage = ''}) {
     return LoggerConfig(
-      minLogLevel: minLogLevel ?? LogLevel.warning,
+      minLogLevel: LogLevel.warning,
       enableConsoleLogging: true,
       enableFileLogging: true,
       logDirectory: logDirectory,
@@ -81,8 +81,15 @@ class LoggerConfig {
 
   /// Checks if a tag should be logged.
   bool isTagEnabled(LogTag tag) {
+    // Always deny if explicitly disabled
+    if (disabledTags.contains(tag)) return false;
+
+    // Allow if explicitly enabled
     if (enabledTags.contains(tag)) return true;
+
+    // For custom tags: allow if allowCustomTags is true
     if (allowCustomTags && !LogTag.values.contains(tag)) return true;
+
     return false;
   }
 
@@ -102,34 +109,40 @@ class LoggerConfig {
   LoggerConfig withTagEnabled(String label) {
     final tag = findTagByLabel(label, allowCustom: true)!;
     final newTags = Set<LogTag>.from(enabledTags)..add(tag);
-    return copyWith(enabledTags: newTags);
+    final newDisabled = Set<LogTag>.from(disabledTags)..remove(tag);
+    return copyWith(enabledTags: newTags, disabledTags: newDisabled);
   }
 
   /// Returns a new config with the specified tag disabled (by label).
   LoggerConfig withTagDisabled(String label) {
     final tag = findTagByLabel(label, allowCustom: true)!;
     final newTags = Set<LogTag>.from(enabledTags)..remove(tag);
-    return copyWith(enabledTags: newTags);
+    final newDisabled = Set<LogTag>.from(disabledTags)..add(tag);
+    return copyWith(enabledTags: newTags, disabledTags: newDisabled);
   }
 
   /// Returns a new config with multiple tags enabled (by labels).
   LoggerConfig withTagsEnabled(Iterable<String> labels) {
     final newTags = Set<LogTag>.from(enabledTags);
+    final newDisabled = Set<LogTag>.from(disabledTags);
     for (final label in labels) {
       final tag = findTagByLabel(label, allowCustom: true)!;
       newTags.add(tag);
+      newDisabled.remove(tag);
     }
-    return copyWith(enabledTags: newTags);
+    return copyWith(enabledTags: newTags, disabledTags: newDisabled);
   }
 
   /// Returns a new config with multiple tags disabled (by labels).
   LoggerConfig withTagsDisabled(Iterable<String> labels) {
     final newTags = Set<LogTag>.from(enabledTags);
+    final newDisabled = Set<LogTag>.from(disabledTags);
     for (final label in labels) {
       final tag = findTagByLabel(label, allowCustom: true)!;
       newTags.remove(tag);
+      newDisabled.add(tag);
     }
-    return copyWith(enabledTags: newTags);
+    return copyWith(enabledTags: newTags, disabledTags: newDisabled);
   }
 
   // ---------------------------------------------------------------------------
@@ -146,6 +159,7 @@ class LoggerConfig {
     bool? enableFileLogging,
     String? logDirectory,
     Set<LogTag>? enabledTags,
+    Set<LogTag>? disabledTags,
     LogPrinter? printer,
     LogOutput? output,
     String? prefixMessage,
@@ -161,6 +175,7 @@ class LoggerConfig {
       enableFileLogging: enableFileLogging ?? this.enableFileLogging,
       logDirectory: logDirectory ?? this.logDirectory,
       enabledTags: enabledTags ?? this.enabledTags,
+      disabledTags: disabledTags ?? this.disabledTags,
       printer: printer ??
           (prefixChanged ? _defaultPrinter(newPrefix) : this.printer),
       output: output ?? this.output,
