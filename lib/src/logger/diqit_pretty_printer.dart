@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:diqit_logging/src/logger/aligned_pretty_printer.dart';
 import 'package:logger/logger.dart';
 
 /// Custom PrettyPrinter with preset configurations for common use cases.
@@ -7,6 +8,7 @@ import 'package:logger/logger.dart';
 /// - [DPrettyPrinter.trace] - Full stack trace, for debugging complex flows.
 /// - [DPrettyPrinter.compact] - Emoji + message, no box, for readable logs.
 /// - [DPrettyPrinter.minimal] - Bare text only, for production/clean output.
+/// - [DPrettyPrinter.minimalAligned] - Minimal with padding for alignment.
 class DPrettyPrinter extends PrettyPrinter {
   // ---------------------------------------------------------------------------
   // Constants
@@ -90,6 +92,25 @@ class DPrettyPrinter extends PrettyPrinter {
       colors: isColorSupported,
       noBoxingByDefault: true,
       printEmojis: false,
+    );
+  }
+
+  /// Minimal printer with alignment padding.
+  ///
+  /// Use when: mixing minimal logs with compact logs (with emojis).
+  /// Output: Plain text with leading spaces to align with emoji logs.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Compact log
+  /// 💡 User logged in
+  /// // MinimalAligned log
+  ///    Session started  // 3 spaces padding
+  /// ```
+  static LogPrinter minimalAligned({int paddingSize = 3}) {
+    return AlignedPrettyPrinter(
+      DPrettyPrinter.minimal(),
+      paddingSize: paddingSize,
     );
   }
 
