@@ -22,7 +22,10 @@ class DPrettyPrinter extends PrettyPrinter {
 
   static bool _detectColorSupport() {
     if (Platform.isIOS) return false;
-    return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    return Platform.isWindows ||
+        Platform.isLinux ||
+        Platform.isMacOS ||
+        Platform.isAndroid;
   }
 
   // ---------------------------------------------------------------------------
