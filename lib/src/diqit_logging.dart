@@ -167,6 +167,7 @@ class DiqitLogger {
     LogTag tag,
     dynamic error,
     StackTrace? stackTrace, {
+    dynamic data,
     DPrettyPrinter? printer,
   }) {
     if (!_initialized) {
@@ -175,7 +176,7 @@ class DiqitLogger {
       _activeLogger = _createLoggerInstance();
     }
 
-    final logMsg = DLogMessage(message, tag);
+    final logMsg = DLogMessage(message, tag, data);
 
     final targetLogger = printer != null
         ? _createLoggerInstance(printer: printer)
@@ -196,12 +197,16 @@ class DiqitLogger {
   // * --- Default Printers ---
   static DPrettyPrinter get _minimalPrinter => DPrettyPrinter.minimal();
   static DPrettyPrinter get _tracePrinter => DPrettyPrinter.trace();
+	static DPrettyPrinter get _errorPrinter => DPrettyPrinter.trace(
+		methodCount: 8,
+	);
 
   /// Logs a [Level.trace] message (Verbose).
   ///
   /// **Short Version**: Uses minimal printer.
   static void t(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -211,6 +216,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _minimalPrinter,
       );
 
@@ -219,6 +225,7 @@ class DiqitLogger {
   /// **Full Version**: Uses trace printer.
   static void trace(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -228,6 +235,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _tracePrinter,
       );
 
@@ -236,6 +244,7 @@ class DiqitLogger {
   /// **Short Version**: Uses minimal printer.
   static void d(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -245,6 +254,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _minimalPrinter,
       );
 
@@ -253,6 +263,7 @@ class DiqitLogger {
   /// **Full Version**: Uses trace printer.
   static void debug(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -262,6 +273,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _tracePrinter,
       );
 
@@ -270,6 +282,7 @@ class DiqitLogger {
   /// **Short Version**: Uses minimal printer.
   static void i(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -279,6 +292,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _minimalPrinter,
       );
 
@@ -287,6 +301,7 @@ class DiqitLogger {
   /// **Full Version**: Uses trace printer.
   static void info(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -296,6 +311,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _tracePrinter,
       );
 
@@ -304,6 +320,7 @@ class DiqitLogger {
   /// **Short Version**: Uses minimal printer.
   static void w(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -313,6 +330,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _minimalPrinter,
       );
 
@@ -321,6 +339,7 @@ class DiqitLogger {
   /// **Full Version**: Uses trace printer.
   static void warning(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
   }) =>
@@ -330,6 +349,7 @@ class DiqitLogger {
         tag,
         null,
         null,
+        data: data,
         printer: printer ?? _tracePrinter,
       );
 
@@ -338,6 +358,7 @@ class DiqitLogger {
   /// **Short Version**: Uses minimal printer.
   static void e(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
@@ -349,6 +370,7 @@ class DiqitLogger {
         tag,
         error,
         stackTrace,
+        data: data,
         printer: printer ?? _minimalPrinter,
       );
 
@@ -357,10 +379,12 @@ class DiqitLogger {
   /// **Full Version**: Uses trace printer.
   static void error(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
+		int? countMethod,
   }) =>
       _instance._log(
         Level.error,
@@ -368,7 +392,11 @@ class DiqitLogger {
         tag,
         error,
         stackTrace,
-        printer: printer ?? _tracePrinter,
+        data: data,
+        printer: printer ?? DPrettyPrinter.trace(
+					methodCount: countMethod ?? 8,
+					stackTraceBeginIndex: 0,
+				),
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
@@ -376,6 +404,7 @@ class DiqitLogger {
   /// **Short Version**: Uses minimal printer.
   static void ft(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
@@ -387,6 +416,7 @@ class DiqitLogger {
         tag,
         error,
         stackTrace,
+        data: data,
         printer: printer ?? _minimalPrinter,
       );
 
@@ -395,6 +425,7 @@ class DiqitLogger {
   /// **Full Version**: Uses trace printer.
   static void fatal(
     String message, {
+    dynamic data,
     LogTag tag = LogTag.none,
     dynamic error,
     StackTrace? stackTrace,
@@ -406,6 +437,7 @@ class DiqitLogger {
         tag,
         error,
         stackTrace,
+        data: data,
         printer: printer ?? _tracePrinter,
       );
 }
