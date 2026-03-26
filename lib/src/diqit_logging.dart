@@ -197,9 +197,6 @@ class DiqitLogger {
   // * --- Default Printers ---
   static DPrettyPrinter get _minimalPrinter => DPrettyPrinter.minimal();
   static DPrettyPrinter get _tracePrinter => DPrettyPrinter.trace();
-	static DPrettyPrinter get _errorPrinter => DPrettyPrinter.trace(
-		methodCount: 8,
-	);
 
   /// Logs a [Level.trace] message (Verbose).
   ///
@@ -228,6 +225,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    int? countMethod,
   }) =>
       _instance._log(
         Level.trace,
@@ -236,7 +234,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _tracePrinter,
+        printer: printer ??
+            (countMethod != null
+                ? DPrettyPrinter.trace(
+                    methodCount: countMethod, stackTraceBeginIndex: 0)
+                : _tracePrinter),
       );
 
   /// Logs a [Level.debug] message.
@@ -266,6 +268,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    int? countMethod,
   }) =>
       _instance._log(
         Level.debug,
@@ -274,7 +277,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _tracePrinter,
+        printer: printer ??
+            (countMethod != null
+                ? DPrettyPrinter.trace(
+                    methodCount: countMethod, stackTraceBeginIndex: 0)
+                : _tracePrinter),
       );
 
   /// Logs a [Level.info] message.
@@ -304,6 +311,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    int? countMethod,
   }) =>
       _instance._log(
         Level.info,
@@ -312,7 +320,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _tracePrinter,
+        printer: printer ??
+            (countMethod != null
+                ? DPrettyPrinter.trace(
+                    methodCount: countMethod, stackTraceBeginIndex: 0)
+                : _tracePrinter),
       );
 
   /// Logs a [Level.warning] message.
@@ -342,6 +354,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    int? countMethod,
   }) =>
       _instance._log(
         Level.warning,
@@ -350,7 +363,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _tracePrinter,
+        printer: printer ??
+            (countMethod != null
+                ? DPrettyPrinter.trace(
+                    methodCount: countMethod, stackTraceBeginIndex: 0)
+                : _tracePrinter),
       );
 
   /// Logs a [Level.error] message.
@@ -384,7 +401,7 @@ class DiqitLogger {
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
-		int? countMethod,
+    int? countMethod,
   }) =>
       _instance._log(
         Level.error,
@@ -393,10 +410,11 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ?? DPrettyPrinter.trace(
-					methodCount: countMethod ?? 8,
-					stackTraceBeginIndex: 0,
-				),
+        printer: printer ??
+            DPrettyPrinter.trace(
+              methodCount: countMethod ?? 8,
+              stackTraceBeginIndex: 0,
+            ),
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
@@ -430,6 +448,7 @@ class DiqitLogger {
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
+    int? countMethod,
   }) =>
       _instance._log(
         Level.fatal,
@@ -438,6 +457,10 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ?? _tracePrinter,
+        printer: printer ??
+            (countMethod != null
+                ? DPrettyPrinter.trace(
+                    methodCount: countMethod, stackTraceBeginIndex: 0)
+                : _tracePrinter),
       );
 }

@@ -30,9 +30,11 @@ class DiqitLogPrinter extends LogPrinter {
   }
 
   String _formatMessage(DLogMessage msg) {
+    // Use toString() to include data (pretty-formatted)
+    final content = msg.toString();
     if (msg.tag == LogTag.none || msg.tag.label.isEmpty) {
-      return '$prefix${msg.message}';
+      return '$prefix$content';
     }
-    return '$prefix [${msg.tag.label}] :: ${msg.message}';
+    return '$prefix [${msg.tag.label}] :: $content';
   }
 }
