@@ -218,3 +218,70 @@ class DPrettyPrinter extends PrettyPrinter {
   @Deprecated('Use DPrettyPrinter.minimal() instead')
   factory DPrettyPrinter.cleanNoise() => DPrettyPrinter.minimal();
 }
+
+/// A custom inline printer for shorthand logs (d, i, w, e) natively supporting colors and emojis
+/// without using boxing frames.
+class DShorthandPrinter extends DPrettyPrinter {
+  final bool enableColors;
+
+  DShorthandPrinter({this.enableColors = true}) 
+      : super(colors: enableColors, noBoxingByDefault: true, printEmojis: false);
+
+  static const Map<Level, String> _levelColors = {
+    Level.trace: '\x1B[38;5;244m', // grey
+    Level.debug: '\x1B[38;5;14m',  // cyan
+    Level.info: '\x1B[38;5;12m',   // bright blue
+    Level.warning: '\x1B[38;5;208m', // orange
+    Level.error: '\x1B[38;5;196m', // red
+    Level.fatal: '\x1B[38;5;199m', // magenta
+  };
+
+  static const String _resetColor = '\x1B[0m';
+  static const String _timeColor = '\x1B[38;5;240m'; // dim grey
+
+  @override
+  List<String> log(LogEvent event) {
+    final messageStr = event.message.toString();
+    final time = DateTime.now();
+    final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
+    
+    final emoji = DPrettyPrinter.mixedEmojis[event.level] ?? '';
+    final color = _levelColors[event.level] ?? '';
+    final isColorEnabled = enableColors && DPrettyPrinter.isColorSupported;
+
+    final lines = messageStr.split('\n');
+    final formattedLines = <String>[];
+    
+    // 13 spaces to align with the message after "[HH:MM:SS] E "
+    const indent = '             ';
+    const dimColor = '\x1B[38;5;242m'; // medium grey for data payload
+
+    for (var i = 0; i < lines.length; i++) {
+      if (i == 0) {
+        if (isColorEnabled) {
+          formattedLines.add('$_timeColor[$timeStr]$_resetColor $emoji $color${lines[i]}$_resetColor');
+        } else {
+          formattedLines.add('[$timeStr] $emoji ${lines[i]}');
+        }
+      } else {
+        // For Data payloads, dim the color so it doesn't clutter the console
+        if (isColorEnabled) {
+          formattedLines.add('$indent$dimColor${lines[i]}$_resetColor');
+        } else {
+          formattedLines.add('$indent${lines[i]}');
+        }
+      }
+    }
+    
+    if (event.error != null) {
+      if (isColorEnabled) {
+        formattedLines.add('$indent\x1B[38;5;196mError: ${event.error}$_resetColor');
+      } else {
+        formattedLines.add('$indent Error: ${event.error}');
+      }
+    }
+    
+    return formattedLines;
+  }
+}
+

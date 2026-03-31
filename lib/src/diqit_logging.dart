@@ -195,7 +195,7 @@ class DiqitLogger {
   }
 
   // * --- Default Printers ---
-  static DPrettyPrinter get _minimalPrinter => DPrettyPrinter.minimal();
+  static DPrettyPrinter get _minimalPrinter => DShorthandPrinter();
   static DPrettyPrinter get _tracePrinter => DPrettyPrinter.trace();
 
   /// Logs a [Level.trace] message (Verbose).
