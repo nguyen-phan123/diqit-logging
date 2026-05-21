@@ -241,6 +241,52 @@ class DiqitLogger {
                 : _tracePrinter),
       );
 
+  /// Logs a [Level.trace] message specifically for flow execution tracing.
+  /// Uses a custom 'function' tag to support filtering.
+  static void flow({
+    Map<String, dynamic>? args,
+    DPrettyPrinter? printer,
+  }) {
+    final stackTrace = StackTrace.current.toString().split('\n');
+    // Index 0: StackTrace.current
+    // Index 1: DiqitLogger.flow
+    // Index 2: The function calling flow() (current function)
+    // Index 3: The function calling the current function
+
+    final currentFunc =
+        _extractFunctionName(stackTrace.length > 2 ? stackTrace[2] : '');
+    final callerFunc =
+        _extractFunctionName(stackTrace.length > 3 ? stackTrace[3] : '');
+
+    final flowPath =
+        callerFunc.isNotEmpty ? '$callerFunc -> $currentFunc' : currentFunc;
+    var finalMessage = '[$flowPath]';
+
+    if (args != null && args.isNotEmpty) {
+      finalMessage += '\nParams: $args';
+    }
+
+    _instance._log(
+      Level.debug,
+      finalMessage,
+      LogTag.custom('function'),
+      null,
+      null,
+      printer: printer ?? _minimalPrinter,
+    );
+  }
+
+  static String _extractFunctionName(String stackTraceLine) {
+    if (stackTraceLine.isEmpty) return '';
+    final regex = RegExp(r'#\d+\s+([^\s]+)');
+    final match = regex.firstMatch(stackTraceLine);
+    if (match != null && match.groupCount >= 1) {
+      final name = match.group(1) ?? '';
+      return name.replaceAll(RegExp(r'\.<anonymous closure>'), '');
+    }
+    return '';
+  }
+
   /// Logs a [Level.debug] message.
   ///
   /// **Short Version**: Uses minimal printer.

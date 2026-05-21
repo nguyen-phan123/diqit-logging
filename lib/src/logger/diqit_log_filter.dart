@@ -14,12 +14,19 @@ class DLogFilter extends LogFilter {
       return false;
     }
 
+    final hasSearchPatterns = config.searchTagPatterns != null &&
+        config.searchTagPatterns!.isNotEmpty;
+
     if (event.message is DLogMessage) {
       final msg = event.message as DLogMessage;
-      if (msg.tag == LogTag.none) return true;
+      if (msg.tag == LogTag.none) {
+        // When search patterns are active, untagged logs should be hidden
+        return !hasSearchPatterns;
+      }
       return config.isTagEnabled(msg.tag);
     }
 
-    return true;
+    // Non-DLogMessage: hide when search patterns are active
+    return !hasSearchPatterns;
   }
 }

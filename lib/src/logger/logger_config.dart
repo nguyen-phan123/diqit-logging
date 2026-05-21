@@ -22,6 +22,7 @@ class LoggerConfig {
   final LogOutput? output;
   final String prefixMessage;
   final bool allowCustomTags;
+  final List<String>? searchTagPatterns;
 
   LoggerConfig({
     this.minLogLevel = Level.debug,
@@ -34,6 +35,7 @@ class LoggerConfig {
     this.output,
     this.prefixMessage = '',
     this.allowCustomTags = false,
+    this.searchTagPatterns,
   })  : enabledTags = enabledTags ?? Set.from(LogTag.values),
         disabledTags = disabledTags ?? {},
         printer = printer ?? _defaultPrinter(prefixMessage);
@@ -47,7 +49,14 @@ class LoggerConfig {
     String? logDirectory,
     String prefixMessage = '',
     LogLevel? minLogLevel,
+    List<String>? searchTagPatterns,
   }) {
+    final envTag = const String.fromEnvironment('LOG_TAGS', defaultValue: '');
+    final resolvedPatterns = searchTagPatterns ??
+        (envTag.isNotEmpty
+            ? envTag.split(',').map((e) => e.trim()).toList()
+            : null);
+
     return LoggerConfig(
       minLogLevel: minLogLevel ?? LogLevel.debug,
       enableConsoleLogging: true,
@@ -57,12 +66,16 @@ class LoggerConfig {
       printer: _tracePrinter(prefixMessage),
       prefixMessage: prefixMessage,
       allowCustomTags: true,
+      searchTagPatterns: resolvedPatterns,
     );
   }
 
   /// Production config: warnings+, critical tags only, file logging enabled.
-  factory LoggerConfig.production(
-      {String? logDirectory, String prefixMessage = ''}) {
+  factory LoggerConfig.production({
+    String? logDirectory,
+    String prefixMessage = '',
+    List<String>? searchTagPatterns,
+  }) {
     return LoggerConfig(
       minLogLevel: LogLevel.warning,
       enableConsoleLogging: true,
@@ -72,6 +85,7 @@ class LoggerConfig {
       printer: _defaultPrinter(prefixMessage),
       prefixMessage: prefixMessage,
       allowCustomTags: false,
+      searchTagPatterns: searchTagPatterns,
     );
   }
 
@@ -81,6 +95,11 @@ class LoggerConfig {
 
   /// Checks if a tag should be logged.
   bool isTagEnabled(LogTag tag) {
+    if (searchTagPatterns != null && searchTagPatterns!.isNotEmpty) {
+      final label = tag.label.toLowerCase();
+      return searchTagPatterns!.any((p) => label == p.toLowerCase());
+    }
+
     // Always deny if explicitly disabled
     if (disabledTags.contains(tag)) return false;
 
