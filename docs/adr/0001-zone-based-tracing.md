@@ -1,15 +1,16 @@
 # 0001: Zone-based Tracing for Mobile POS Cross-App Log Correlation
 
-- **Status**: Accepted
+- **Status**: Superseded by 0002
 - **Date**: 2026-07-24
+- **Superseded by**: [0002-typed-trace-id-and-stack-nesting.md](./0002-typed-trace-id-and-stack-nesting.md)
 
 ## Context & Decision
 
 Mobile POS applications (KDS, OT, Dispatch, Customer Display) communicate via Socket.IO events over an asynchronous, event-driven Flutter architecture. Stack-trace parsing (`DiqitLogger.flow()`) is insufficient because it breaks under release obfuscation and cannot correlate logs across process or network boundaries.
 
-We decided to adopt **Zone-based tracing (`TraceZone`)** inside `diqit-logging`. A `trace_id` is automatically propagated across Dart `Future`/`Stream` boundaries via `Zone.current` and threaded through Socket.IO event payloads across apps.
+We initially adopted **Zone-based tracing (`TraceZone`)** inside `diqit-logging`. A `trace_id` was automatically propagated across Dart `Future`/`Stream` boundaries via `Zone.current` and threaded through Socket.IO event payloads across apps.
 
-## Key Technical Specifications
+## Key Technical Specifications (Original)
 
 1. **Wire Transport (Socket Envelope)**:
    - Socket.IO payloads use standard metadata envelope format: `{ "meta": { "traceId": "..." }, "data": { ... } }`.
