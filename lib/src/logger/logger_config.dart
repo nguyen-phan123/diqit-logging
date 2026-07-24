@@ -51,7 +51,8 @@ class LoggerConfig {
     LogLevel? minLogLevel,
     List<String>? searchTagPatterns,
   }) {
-    final envTag = const String.fromEnvironment('LOG_TAGS', defaultValue: '');
+    const envTag = String.fromEnvironment('LOG_TAGS', defaultValue: '');
+
     final resolvedPatterns = searchTagPatterns ??
         (envTag.isNotEmpty
             ? envTag.split(',').map((e) => e.trim()).toList()

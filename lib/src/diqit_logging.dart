@@ -1,6 +1,7 @@
 import 'package:diqit_logging/src/internal/file_log_manager.dart';
 import 'package:diqit_logging/src/internal/log_history_manager.dart';
 import 'package:diqit_logging/src/logger/logger.dart';
+import 'package:diqit_logging/src/trace/trace_zone.dart';
 import 'package:logger/logger.dart';
 
 /// {@template diqit_logging}
@@ -85,6 +86,35 @@ class DiqitLogger {
   /// [lastN] - Optional: Limit to the last N lines.
   static String exportLogs({int? lastN}) =>
       _instance._historyManager.exportLogs(lastN: lastN);
+
+  // * --- TraceZone & Distributed Tracing Public API ---
+
+  /// Returns the current active trace ID, or `null` if not in a [TraceZone].
+  static String? get currentTraceId => TraceZone.currentTraceId;
+
+  /// Runs [body] inside a [TraceZone] bound to [traceId].
+  ///
+  /// Inherits parent [currentTraceId] if [traceId] is omitted or `null`.
+  static R runInTraceZone<R>(
+    R Function() body, {
+    String? traceId,
+  }) =>
+      TraceZone.runInTraceZone(body, traceId: traceId);
+
+  /// Runs [body] inside a newly created [TraceZone], forcing a fresh trace ID.
+  static R runInNewTraceZone<R>(
+    R Function() body, {
+    String? customTraceId,
+  }) =>
+      TraceZone.runInNewTraceZone(body, customTraceId: customTraceId);
+
+  /// Returns log history events specifically matching [traceId].
+  static List<OutputEvent> getLogHistoryForTrace(String traceId) =>
+      _instance._historyManager.getLogHistoryForTrace(traceId);
+
+  /// Exports formatted log entries matching [traceId].
+  static String exportLogsForTrace(String traceId, {int? lastN}) =>
+      _instance._historyManager.exportLogsForTrace(traceId, lastN: lastN);
 
   // * --- Internal Implementation Methods ---
 

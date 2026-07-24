@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:diqit_logging/src/logger/aligned_pretty_printer.dart';
+import 'package:diqit_logging/src/trace/trace_zone.dart';
 import 'package:logger/logger.dart';
 
 /// Custom PrettyPrinter with preset configurations for common use cases.
@@ -219,18 +220,22 @@ class DPrettyPrinter extends PrettyPrinter {
   factory DPrettyPrinter.cleanNoise() => DPrettyPrinter.minimal();
 }
 
-/// A custom inline printer for shorthand logs (d, i, w, e) natively supporting colors and emojis
-/// without using boxing frames.
+/// A custom inline printer for shorthand logs (d, i, w, e) natively supporting
+/// colors and emojis without using boxing frames.
 class DShorthandPrinter extends DPrettyPrinter {
   final bool enableColors;
 
-  DShorthandPrinter({this.enableColors = true}) 
-      : super(colors: enableColors, noBoxingByDefault: true, printEmojis: false);
+  DShorthandPrinter({this.enableColors = true})
+      : super(
+          colors: enableColors,
+          noBoxingByDefault: true,
+          printEmojis: false,
+        );
 
   static const Map<Level, String> _levelColors = {
     Level.trace: '\x1B[38;5;244m', // grey
-    Level.debug: '\x1B[38;5;14m',  // cyan
-    Level.info: '\x1B[38;5;12m',   // bright blue
+    Level.debug: '\x1B[38;5;14m', // cyan
+    Level.info: '\x1B[38;5;12m', // bright blue
     Level.warning: '\x1B[38;5;208m', // orange
     Level.error: '\x1B[38;5;196m', // red
     Level.fatal: '\x1B[38;5;199m', // magenta
@@ -243,15 +248,22 @@ class DShorthandPrinter extends DPrettyPrinter {
   List<String> log(LogEvent event) {
     final messageStr = event.message.toString();
     final time = DateTime.now();
-    final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
-    
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    final s = time.second.toString().padLeft(2, '0');
+    final timeStr = '$h:$m:$s';
+
     final emoji = DPrettyPrinter.mixedEmojis[event.level] ?? '';
     final color = _levelColors[event.level] ?? '';
     final isColorEnabled = enableColors && DPrettyPrinter.isColorSupported;
 
+    final traceId = TraceZone.currentTraceId;
+    final traceStr =
+        (traceId != null && traceId.isNotEmpty) ? '[trace:$traceId] ' : '';
+
     final lines = messageStr.split('\n');
     final formattedLines = <String>[];
-    
+
     // 13 spaces to align with the message after "[HH:MM:SS] E "
     const indent = '             ';
     const dimColor = '\x1B[38;5;242m'; // medium grey for data payload
@@ -259,9 +271,12 @@ class DShorthandPrinter extends DPrettyPrinter {
     for (var i = 0; i < lines.length; i++) {
       if (i == 0) {
         if (isColorEnabled) {
-          formattedLines.add('$_timeColor[$timeStr]$_resetColor $emoji $color${lines[i]}$_resetColor');
+          formattedLines.add(
+            '$_timeColor[$timeStr]$_resetColor $emoji '
+            '$color$traceStr${lines[i]}$_resetColor',
+          );
         } else {
-          formattedLines.add('[$timeStr] $emoji ${lines[i]}');
+          formattedLines.add('[$timeStr] $emoji $traceStr${lines[i]}');
         }
       } else {
         // For Data payloads, dim the color so it doesn't clutter the console
@@ -272,16 +287,17 @@ class DShorthandPrinter extends DPrettyPrinter {
         }
       }
     }
-    
+
     if (event.error != null) {
       if (isColorEnabled) {
-        formattedLines.add('$indent\x1B[38;5;196mError: ${event.error}$_resetColor');
+        formattedLines.add(
+          '$indent\x1B[38;5;196mError: ${event.error}$_resetColor',
+        );
       } else {
         formattedLines.add('$indent Error: ${event.error}');
       }
     }
-    
+
     return formattedLines;
   }
 }
-

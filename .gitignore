@@ -8,3 +8,6 @@ pubspec.lock
 
 # FVM Version Cache
 .fvm/
+
+# Local tool cache
+.rtk/

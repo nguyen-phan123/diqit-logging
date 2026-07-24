@@ -1,5 +1,6 @@
 import 'package:diqit_logging/src/logger/diqit_log_message.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
+import 'package:diqit_logging/src/trace/trace_zone.dart';
 import 'package:logger/logger.dart';
 
 class DiqitLogPrinter extends LogPrinter {
@@ -32,9 +33,13 @@ class DiqitLogPrinter extends LogPrinter {
   String _formatMessage(DLogMessage msg) {
     // Use toString() to include data (pretty-formatted)
     final content = msg.toString();
+    final traceId = TraceZone.currentTraceId;
+    final traceStr =
+        (traceId != null && traceId.isNotEmpty) ? '[trace:$traceId] ' : '';
+
     if (msg.tag == LogTag.none || msg.tag.label.isEmpty) {
-      return '$prefix$content';
+      return '$prefix$traceStr$content';
     }
-    return '$prefix [${msg.tag.label}] :: $content';
+    return '$prefix [${msg.tag.label}] $traceStr:: $content';
   }
 }
