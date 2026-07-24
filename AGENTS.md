@@ -213,3 +213,19 @@ class DiqitLogger {
 - Update README.md if public API changes
 - Follow existing naming patterns (especially for LogTag constants)
 - Maintain backward compatibility (this is used in production apps)
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub (`nguyen-phan123/diqit-logging`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout: `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs/agents/domain.md`.
