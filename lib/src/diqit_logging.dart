@@ -1,6 +1,7 @@
 import 'package:diqit_logging/src/internal/file_log_manager.dart';
 import 'package:diqit_logging/src/internal/log_history_manager.dart';
 import 'package:diqit_logging/src/logger/logger.dart';
+import 'package:diqit_logging/src/logger/printer_selector.dart';
 import 'package:logger/logger.dart';
 
 /// {@template diqit_logging}
@@ -34,6 +35,7 @@ class DiqitLogger {
   // * --- Helpers ---
   final _historyManager = LogHistoryManager();
   final _fileManager = FileLogManager();
+  late PrinterSelector _printerSelector;
 
   DiqitLogger._();
 
@@ -96,6 +98,11 @@ class DiqitLogger {
 
     await _fileManager.initialize(config);
 
+    _printerSelector = PrinterSelector(
+      minimalPrinter: _minimalPrinter,
+      tracePrinter: _tracePrinter,
+    );
+
     _activeLogger = _createLoggerInstance();
   }
 
@@ -111,6 +118,11 @@ class DiqitLogger {
     _config = config;
 
     await _fileManager.initialize(config);
+
+    _printerSelector = PrinterSelector(
+      minimalPrinter: _minimalPrinter,
+      tracePrinter: _tracePrinter,
+    );
 
     _activeLogger = _createLoggerInstance();
   }
@@ -214,7 +226,10 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.trace] message (Verbose).
@@ -234,11 +249,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.trace] message specifically for flow execution tracing.
@@ -303,7 +318,10 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.debug] message.
@@ -323,11 +341,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.info] message.
@@ -346,7 +364,10 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.info] message.
@@ -366,11 +387,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.warning] message.
@@ -389,7 +410,10 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.warning] message.
@@ -409,11 +433,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.error] message.
@@ -434,7 +458,10 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.error] message.
@@ -481,7 +508,10 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
@@ -503,11 +533,11 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
       );
 }
 
