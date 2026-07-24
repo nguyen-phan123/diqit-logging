@@ -1,4 +1,3 @@
-export 'diqit_log_filter.dart';
 export 'diqit_log_message.dart';
 export 'diqit_log_printer.dart';
 export 'diqit_pretty_printer.dart';
