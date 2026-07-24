@@ -37,7 +37,7 @@ class LogHistoryManager {
 
   /// Returns a snapshot of log events matching [traceId].
   List<OutputEvent> getLogHistoryForTrace(String traceId) {
-    final searchTag = '[trace:$traceId]';
+    final searchTag = '[$traceId]';
     return _memoryOutput.buffer.where((event) {
       return event.lines.any((line) => line.contains(searchTag));
     }).toList();
@@ -45,7 +45,7 @@ class LogHistoryManager {
 
   /// Exports logs matching [traceId] as a formatted string.
   String exportLogsForTrace(String traceId, {int? lastN}) {
-    final searchTag = '[trace:$traceId]';
+    final searchTag = '[$traceId]';
     var entries = _memoryOutput.buffer.where((event) {
       return event.lines.any((line) => line.contains(searchTag));
     }).toList();

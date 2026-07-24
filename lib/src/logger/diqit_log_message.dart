@@ -1,20 +1,37 @@
 import 'dart:convert';
 
 import 'package:diqit_logging/src/logger/log_tag.dart';
+import 'package:diqit_logging/src/logger/trace_id.dart';
 
 class DLogMessage {
   final String message;
   final LogTag tag;
   final dynamic data;
+  final TraceId? traceId;
 
-  const DLogMessage(this.message, [this.tag = LogTag.none, this.data]);
+  const DLogMessage(
+    this.message, [
+    this.tag = LogTag.none,
+    this.data,
+    this.traceId,
+  ]);
 
   @override
   String toString() {
-    if (data != null) {
-      return '$message\n${_formatData(data)}';
+    final buffer = StringBuffer();
+
+    // Add trace ID prefix if present
+    if (traceId != null) {
+      buffer.write('[$traceId] ');
     }
-    return message;
+
+    buffer.write(message);
+
+    if (data != null) {
+      buffer.write('\n${_formatData(data)}');
+    }
+
+    return buffer.toString();
   }
 
   static String _formatData(dynamic data) {

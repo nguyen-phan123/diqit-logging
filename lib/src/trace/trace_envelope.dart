@@ -1,4 +1,5 @@
-import 'package:diqit_logging/src/trace/trace_zone.dart';
+import 'package:diqit_logging/src/logger/trace_id.dart';
+import 'package:diqit_logging/src/logger/zone_trace.dart';
 
 /// {@template trace_envelope}
 /// Helper utilities to extract and inject `traceId` metadata into/from
@@ -31,24 +32,24 @@ class TraceEnvelope {
     return null;
   }
 
-  /// Injects [traceId] (or active [TraceZone.currentTraceId]) into [payload].
+  /// Injects [traceId] (or active Zone trace) into [payload].
   ///
   /// Returns a new [Map] containing
   /// `{ "meta": { "traceId": traceId, ... }, ... }`.
-
   static Map<String, dynamic> injectTraceId(
     Map<String, dynamic> payload, {
-    String? traceId,
+    TraceId? traceId,
   }) {
-    final effectiveTraceId =
-        traceId ?? TraceZone.currentTraceId ?? TraceZone.generateTraceId();
+    final effectiveTrace = traceId ??
+        ZoneTrace.currentTrace() ??
+        TraceId.global();
 
     final result = Map<String, dynamic>.from(payload);
     final meta = result[metaKey] is Map
         ? Map<String, dynamic>.from(result[metaKey] as Map)
         : <String, dynamic>{};
 
-    meta[traceIdKey] = effectiveTraceId;
+    meta[traceIdKey] = effectiveTrace.toString();
     result[metaKey] = meta;
 
     return result;

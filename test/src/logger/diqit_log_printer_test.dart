@@ -3,50 +3,50 @@ import 'package:test/test.dart';
 
 void main() {
   group('DiqitLogPrinter & DShorthandPrinter Tracing', () {
-    test('traceId should appear once in log line when in TraceZone', () async {
+    test('traceId should appear once in log line when in zone', () async {
       await DiqitLogger.initialize(LoggerConfig.development());
 
-      const traceId = 'createOrder_1784867983330';
+      final trace = TraceId.manual('createOrder', 1784867983330);
 
-      DiqitLogger.runInTraceZone(() {
+      DiqitLogger.runTracedSync(trace, () {
         DiqitLogger.i('masterCreateOrder', tag: LogTag.order);
-      }, traceId: traceId);
+      });
 
       final history = DiqitLogger.getLogHistory();
       expect(history, isNotEmpty);
       final lastLogLines = history.last.lines;
       final fullLog = lastLogLines.join('\n');
 
-      final occurrences = traceId.allMatches(fullLog).length;
+      final occurrences = '#createOrder-1784867983330'.allMatches(fullLog).length;
       expect(
         occurrences,
         equals(1),
         reason:
-            'traceId $traceId appeared $occurrences times in log: "$fullLog"',
+            'traceId appeared $occurrences times in log: "$fullLog"',
       );
     });
 
-    test('traceId should appear once in full method when in TraceZone',
+    test('traceId should appear once in full method when in zone',
         () async {
       await DiqitLogger.initialize(LoggerConfig.development());
 
-      const traceId = 'createOrder_1784867983330';
+      final trace = TraceId.manual('createOrder', 1784867983330);
 
-      DiqitLogger.runInTraceZone(() {
+      DiqitLogger.runTracedSync(trace, () {
         DiqitLogger.info('masterCreateOrder', tag: LogTag.order);
-      }, traceId: traceId);
+      });
 
       final history = DiqitLogger.getLogHistory();
       expect(history, isNotEmpty);
       final lastLogLines = history.last.lines;
       final fullLog = lastLogLines.join('\n');
 
-      final occurrences = traceId.allMatches(fullLog).length;
+      final occurrences = '#createOrder-1784867983330'.allMatches(fullLog).length;
       expect(
         occurrences,
         equals(1),
         reason:
-            'traceId $traceId appeared $occurrences times in log: "$fullLog"',
+            'traceId appeared $occurrences times in log: "$fullLog"',
       );
     });
 

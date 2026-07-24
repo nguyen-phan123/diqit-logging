@@ -1,7 +1,8 @@
 import 'package:diqit_logging/src/internal/file_log_manager.dart';
 import 'package:diqit_logging/src/internal/log_history_manager.dart';
 import 'package:diqit_logging/src/logger/logger.dart';
-import 'package:diqit_logging/src/trace/trace_zone.dart';
+import 'package:diqit_logging/src/logger/trace_id.dart';
+import 'package:diqit_logging/src/logger/zone_trace.dart';
 import 'package:logger/logger.dart';
 
 /// {@template diqit_logging}
@@ -13,6 +14,7 @@ import 'package:logger/logger.dart';
 /// - **Dual Printers**: Short methods (e.g., [t], [d]) use a minimal printer;
 ///   full methods (e.g., [trace], [debug]) use a detailed trace printer.
 /// - **File Logging**: Optional file logging configured via [initialize].
+/// - **Trace Propagation**: Zone-based trace ID inheritance via [runTraced].
 ///
 /// Usage:
 /// ```dart
@@ -35,8 +37,25 @@ class DiqitLogger {
   // * --- Helpers ---
   final _historyManager = LogHistoryManager();
   final _fileManager = FileLogManager();
+  final _printerSelector = PrinterSelector(
+    minimalPrinter: DShorthandPrinter(),
+    tracePrinter: DPrettyPrinter.trace(),
+  );
 
-  DiqitLogger._();
+  DiqitLogger._() {
+    ZoneTrace.onError = _onZoneTraceError;
+  }
+
+  static void _onZoneTraceError(Object error, StackTrace stackTrace, TraceId traceId) {
+    _instance._log(
+      Level.error,
+      'Uncaught error in traced zone [$traceId]: $error',
+      LogTag.none,
+      error,
+      stackTrace,
+      traceId: traceId,
+    );
+  }
 
   // * --- Static Public API ---
 
@@ -87,26 +106,54 @@ class DiqitLogger {
   static String exportLogs({int? lastN}) =>
       _instance._historyManager.exportLogs(lastN: lastN);
 
-  // * --- TraceZone & Distributed Tracing Public API ---
+  // * --- Trace Propagation Public API ---
 
-  /// Returns the current active trace ID, or `null` if not in a [TraceZone].
-  static String? get currentTraceId => TraceZone.currentTraceId;
+  /// Returns the current active trace ID from the Zone, or null.
+  static TraceId? get currentTraceId => ZoneTrace.currentTrace();
 
-  /// Runs [body] inside a [TraceZone] bound to [traceId].
+  /// Wraps an async callback in a zone with automatic trace propagation.
   ///
-  /// Inherits parent [currentTraceId] if [traceId] is omitted or `null`.
-  static R runInTraceZone<R>(
-    R Function() body, {
-    String? traceId,
-  }) =>
-      TraceZone.runInTraceZone(body, traceId: traceId);
+  /// All logs within [callback] will automatically include [traceId].
+  /// Nested traces append to the parent trace stack.
+  ///
+  /// Example:
+  /// ```dart
+  /// await DiqitLogger.runTraced(
+  ///   TraceId.manual('user-login'),
+  ///   () async {
+  ///     DiqitLogger.i('Starting login'); // Auto-tagged with 'user-login'
+  ///     await apiClient.login();
+  ///     DiqitLogger.i('Login complete'); // Auto-tagged with 'user-login'
+  ///   },
+  /// );
+  /// ```
+  static Future<T> runTraced<T>(
+    TraceId traceId,
+    Future<T> Function() callback,
+  ) {
+    return ZoneTrace.runTraced(traceId, callback);
+  }
 
-  /// Runs [body] inside a newly created [TraceZone], forcing a fresh trace ID.
-  static R runInNewTraceZone<R>(
-    R Function() body, {
-    String? customTraceId,
-  }) =>
-      TraceZone.runInNewTraceZone(body, customTraceId: customTraceId);
+  /// Wraps a sync callback in a zone with automatic trace propagation.
+  ///
+  /// Synchronous version of [runTraced].
+  ///
+  /// Example:
+  /// ```dart
+  /// DiqitLogger.runTracedSync(
+  ///   TraceId.auto(prefix: 'compute'),
+  ///   () {
+  ///     DiqitLogger.d('Processing data');
+  ///     // ... synchronous work ...
+  ///   },
+  /// );
+  /// ```
+  static T runTracedSync<T>(
+    TraceId traceId,
+    T Function() callback,
+  ) {
+    return ZoneTrace.runTracedSync(traceId, callback);
+  }
 
   /// Returns log history events specifically matching [traceId].
   static List<OutputEvent> getLogHistoryForTrace(String traceId) =>
@@ -131,7 +178,6 @@ class DiqitLogger {
 
   Future<void> _updateConfigInternal(LoggerConfig config) async {
     if (!_initialized) {
-      // If not initialized yet, just call initialize
       await _initializeInternal(config);
       return;
     }
@@ -199,6 +245,7 @@ class DiqitLogger {
     StackTrace? stackTrace, {
     dynamic data,
     DPrettyPrinter? printer,
+    TraceId? traceId,
   }) {
     if (!_initialized) {
       _config = LoggerConfig.development();
@@ -206,7 +253,10 @@ class DiqitLogger {
       _activeLogger = _createLoggerInstance();
     }
 
-    final logMsg = DLogMessage(message, tag, data);
+    // Resolve trace ID: explicit parameter > zone context > null
+    final resolvedTraceId = traceId ?? _resolveZoneTrace();
+
+    final logMsg = DLogMessage(message, tag, data, resolvedTraceId);
 
     final targetLogger = printer != null
         ? _createLoggerInstance(printer: printer)
@@ -224,9 +274,18 @@ class DiqitLogger {
     }
   }
 
-  // * --- Default Printers ---
-  static DPrettyPrinter get _minimalPrinter => DShorthandPrinter();
-  static DPrettyPrinter get _tracePrinter => DPrettyPrinter.trace();
+  /// Resolves trace ID from Zone context, formatting nested traces as a chain.
+  ///
+  /// Returns null if no trace is active. When multiple traces are nested,
+  /// returns a composite trace formatted as "outer > inner".
+  TraceId? _resolveZoneTrace() {
+    final stack = ZoneTrace.currentTraceList();
+    if (stack.isEmpty) return null;
+    if (stack.length == 1) return stack.first;
+
+    // Multiple traces: create composite
+    return _CompositeTraceId(stack);
+  }
 
   /// Logs a [Level.trace] message (Verbose).
   ///
@@ -236,6 +295,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.trace,
@@ -244,7 +304,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.trace] message (Verbose).
@@ -256,6 +320,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     int? countMethod,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.trace,
@@ -264,11 +329,12 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.trace] message specifically for flow execution tracing.
@@ -277,6 +343,7 @@ class DiqitLogger {
     Map<String, dynamic>? args,
     DPrettyPrinter? printer,
     LogTag? tag,
+    TraceId? traceId,
   }) {
     final stackTrace = StackTrace.current.toString().split('\n');
     // Index 0: StackTrace.current
@@ -303,7 +370,11 @@ class DiqitLogger {
       tag ?? LogTag.custom('function'),
       null,
       null,
-      printer: printer ?? _minimalPrinter,
+      printer: _instance._printerSelector.select(
+        isShorthand: true,
+        customPrinter: printer,
+      ),
+      traceId: traceId,
     );
   }
 
@@ -326,6 +397,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.debug,
@@ -334,7 +406,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.debug] message.
@@ -346,6 +422,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     int? countMethod,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.debug,
@@ -354,11 +431,12 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.info] message.
@@ -369,6 +447,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.info,
@@ -377,7 +456,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.info] message.
@@ -389,6 +472,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     int? countMethod,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.info,
@@ -397,11 +481,12 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.warning] message.
@@ -412,6 +497,7 @@ class DiqitLogger {
     dynamic data,
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.warning,
@@ -420,7 +506,11 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.warning] message.
@@ -432,6 +522,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     int? countMethod,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.warning,
@@ -440,11 +531,12 @@ class DiqitLogger {
         null,
         null,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.error] message.
@@ -457,6 +549,7 @@ class DiqitLogger {
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.error,
@@ -465,7 +558,11 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.error] message.
@@ -479,6 +576,7 @@ class DiqitLogger {
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
     int? countMethod,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.error,
@@ -487,11 +585,12 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ??
-            DPrettyPrinter.trace(
-              methodCount: countMethod ?? 8,
-              stackTraceBeginIndex: 0,
-            ),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
@@ -504,6 +603,7 @@ class DiqitLogger {
     dynamic error,
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.fatal,
@@ -512,7 +612,11 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ?? _minimalPrinter,
+        printer: _instance._printerSelector.select(
+          isShorthand: true,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
@@ -526,6 +630,7 @@ class DiqitLogger {
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
     int? countMethod,
+    TraceId? traceId,
   }) =>
       _instance._log(
         Level.fatal,
@@ -534,11 +639,12 @@ class DiqitLogger {
         error,
         stackTrace,
         data: data,
-        printer: printer ??
-            (countMethod != null
-                ? DPrettyPrinter.trace(
-                    methodCount: countMethod, stackTraceBeginIndex: 0)
-                : _tracePrinter),
+        printer: _instance._printerSelector.select(
+          isShorthand: false,
+          countMethod: countMethod,
+          customPrinter: printer,
+        ),
+        traceId: traceId,
       );
 }
 
@@ -569,5 +675,26 @@ class _InlineFilter extends LogFilter {
 
     // Non-DLogMessage: hide when search patterns are active
     return !hasSearchPatterns;
+  }
+}
+
+/// Internal composite trace ID for formatting nested traces.
+///
+/// When traces are nested (e.g., outer > inner), this formats them
+/// as a single joined string.
+class _CompositeTraceId implements TraceId {
+  final List<TraceId> _stack;
+
+  _CompositeTraceId(this._stack);
+
+  @override
+  String toString() => _stack.map((t) => t.toString()).join(' > ');
+
+  @override
+  TraceId withSuffix(String suffix) {
+    // Apply suffix to the innermost (last) trace
+    final updated = List<TraceId>.from(_stack);
+    updated[updated.length - 1] = updated.last.withSuffix(suffix);
+    return _CompositeTraceId(updated);
   }
 }
