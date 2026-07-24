@@ -154,7 +154,7 @@ class DiqitLogger {
 
     return Logger(
       level: Level.all, // Filter decides
-      filter: filter ?? DLogFilter(_config),
+      filter: filter ?? _InlineFilter(_config),
       printer: finalPrinter,
       output: MultiOutput(outputs),
     );
@@ -509,4 +509,34 @@ class DiqitLogger {
                     methodCount: countMethod, stackTraceBeginIndex: 0)
                 : _tracePrinter),
       );
+}
+
+/// Inline filter that delegates tag filtering logic to LoggerConfig.
+/// Replaces the deleted DLogFilter shallow module.
+class _InlineFilter extends LogFilter {
+  final LoggerConfig config;
+
+  _InlineFilter(this.config);
+
+  @override
+  bool shouldLog(LogEvent event) {
+    if (event.level.value < config.minLogLevel.value) {
+      return false;
+    }
+
+    final hasSearchPatterns = config.searchTagPatterns != null &&
+        config.searchTagPatterns!.isNotEmpty;
+
+    if (event.message is DLogMessage) {
+      final msg = event.message as DLogMessage;
+      if (msg.tag == LogTag.none) {
+        // When search patterns are active, untagged logs should be hidden
+        return !hasSearchPatterns;
+      }
+      return config.isTagEnabled(msg.tag);
+    }
+
+    // Non-DLogMessage: hide when search patterns are active
+    return !hasSearchPatterns;
+  }
 }
