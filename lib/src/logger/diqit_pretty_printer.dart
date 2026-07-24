@@ -268,11 +268,11 @@ class DShorthandPrinter extends DPrettyPrinter {
       if (i == 0) {
         if (isColorEnabled) {
           formattedLines.add(
-            '$_timeColor[$timeStr]$_resetColor $emoji '
+            '$emoji $_timeColor[$timeStr]$_resetColor '
             '$color${lines[i]}$_resetColor',
           );
         } else {
-          formattedLines.add('[$timeStr] $emoji ${lines[i]}');
+          formattedLines.add('$emoji [$timeStr] ${lines[i]}');
         }
       } else {
         // For Data payloads, dim the color so it doesn't clutter the console

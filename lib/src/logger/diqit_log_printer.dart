@@ -40,6 +40,6 @@ class DiqitLogPrinter extends LogPrinter {
     if (msg.tag == LogTag.none || msg.tag.label.isEmpty) {
       return '$prefix$traceStr$content';
     }
-    return '$prefix [${msg.tag.label}] $traceStr:: $content';
+    return '$prefix [${msg.tag.label}] $traceStr -> $content';
   }
 }

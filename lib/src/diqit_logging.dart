@@ -276,6 +276,7 @@ class DiqitLogger {
   static void flow({
     Map<String, dynamic>? args,
     DPrettyPrinter? printer,
+    LogTag? tag,
   }) {
     final stackTrace = StackTrace.current.toString().split('\n');
     // Index 0: StackTrace.current
@@ -299,7 +300,7 @@ class DiqitLogger {
     _instance._log(
       Level.debug,
       finalMessage,
-      LogTag.custom('function'),
+      tag ?? LogTag.custom('function'),
       null,
       null,
       printer: printer ?? _minimalPrinter,

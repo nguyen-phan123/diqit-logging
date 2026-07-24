@@ -50,8 +50,7 @@ void main() {
       );
     });
 
-    test('timestamp should include milliseconds in DShorthandPrinter',
-        () async {
+    test('emoji comes before timestamp with ms in DShorthandPrinter', () async {
       await DiqitLogger.initialize(LoggerConfig.development());
 
       DiqitLogger.i('test timestamp with ms');
@@ -61,12 +60,12 @@ void main() {
       final lastLogLines = history.last.lines;
       final firstLine = lastLogLines.first;
 
-      // Expect format [HH:mm:ss.SSS]
-      final regex = RegExp(r'\[\d{2}:\d{2}:\d{2}\.\d{3}\]');
+      // Expect emoji followed by [HH:mm:ss.SSS] e.g. "ℹ [13:32:31.091]"
+      final regex = RegExp(r'ℹ.*\[\d{2}:\d{2}:\d{2}\.\d{3}\]');
       expect(
         regex.hasMatch(firstLine),
         isTrue,
-        reason: 'Log timestamp should contain milliseconds: "$firstLine"',
+        reason: 'Emoji should come before timestamp: "$firstLine"',
       );
     });
   });

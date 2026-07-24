@@ -23,9 +23,9 @@ class DLogMessage {
       final jsonString = encoder.convert(
         data is String ? data : _toJsonSafe(data),
       );
-      return 'Data: $jsonString';
+      return '{\n  "data": $jsonString\n}';
     } catch (_) {
-      return 'Data: $data';
+      return '{\n  "data": $data\n}';
     }
   }
 
