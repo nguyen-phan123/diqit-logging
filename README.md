@@ -9,6 +9,7 @@ A powerful, singleton-based logging wrapper for Dart/Flutter applications, desig
   - **Short/Clean**: For everyday development (less noise).
   - **Full/Trace**: For deep debugging (includes stack trace and method info).
 - **Smart Tagging**: Categorize logs using `LogTag` (e.g., `LogTag.network`, `LogTag.database`).
+- **Function Execution Flow Tracing**: Automatically capture caller → current function relationships for debugging.
 - **File Logging**: Automatically writes logs to the file system (configurable).
 - **Memory History**: Keeps a buffer of recent logs for in-app viewing or export.
 - **Unified Interface**: Simple static methods like `DiqitLogger.i()`, `DiqitLogger.error()`.
@@ -77,6 +78,42 @@ try {
 ```
 
 ### 4. Advanced Features
+
+#### Function Execution Flow Tracing
+Trace function execution flow to understand the call stack and debug complex pipelines. The `flow()` method automatically captures the caller → current function relationship:
+
+```dart
+void orderController() {
+  DiqitLogger.flow(); // Logs: [callerFunction -> orderController]
+  processOrder();
+}
+
+void processOrder() {
+  DiqitLogger.flow(args: {'orderId': 123, 'status': 'pending'});
+  // Logs: [orderController -> processOrder]
+  // Params: {orderId: 123, status: pending}
+}
+```
+
+**Filtering flow logs:**
+```dart
+// Enable only function tracing logs
+final config = LoggerConfig.development(
+  searchTagPatterns: ['function'],
+);
+await DiqitLogger.initialize(config);
+
+// Or disable function logs
+final config = LoggerConfig.development()
+    .withTagsDisabled(['function']);
+await DiqitLogger.updateConfig(config);
+```
+
+**Use cases:**
+- Debug legacy code without existing logging
+- Trace Socket.IO event handler pipelines
+- Understand execution flow in complex business logic
+- Capture function parameters for debugging
 
 #### Export Logs
 You can export the in-memory log history to a string (useful for "Report a Bug" features).
