@@ -19,7 +19,8 @@ class PrinterSelector {
   /// Selects appropriate printer based on method type and options.
   ///
   /// - [isShorthand]: true for shorthand methods (t, d, i, w, e, ft)
-  /// - [countMethod]: if non-null, creates ephemeral printer with custom stack depth
+  /// - [countMethod]: if non-null, creates ephemeral printer with custom
+  ///   stack depth
   /// - [customPrinter]: if provided, overrides all selection logic
   ///
   /// Returns:

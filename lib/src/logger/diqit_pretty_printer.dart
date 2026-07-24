@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:diqit_logging/src/logger/aligned_pretty_printer.dart';
-import 'package:diqit_logging/src/trace/trace_zone.dart';
 import 'package:logger/logger.dart';
 
 /// Custom PrettyPrinter with preset configurations for common use cases.
@@ -251,21 +250,18 @@ class DShorthandPrinter extends DPrettyPrinter {
     final h = time.hour.toString().padLeft(2, '0');
     final m = time.minute.toString().padLeft(2, '0');
     final s = time.second.toString().padLeft(2, '0');
-    final timeStr = '$h:$m:$s';
+    final ms = time.millisecond.toString().padLeft(3, '0');
+    final timeStr = '$h:$m:$s.$ms';
 
     final emoji = DPrettyPrinter.mixedEmojis[event.level] ?? '';
     final color = _levelColors[event.level] ?? '';
     final isColorEnabled = enableColors && DPrettyPrinter.isColorSupported;
 
-    final traceId = TraceZone.currentTraceId;
-    final traceStr =
-        (traceId != null && traceId.isNotEmpty) ? '[trace:$traceId] ' : '';
-
     final lines = messageStr.split('\n');
     final formattedLines = <String>[];
 
-    // 13 spaces to align with the message after "[HH:MM:SS] E "
-    const indent = '             ';
+    // 17 spaces to align with the message after "[HH:MM:SS.mmm] E "
+    const indent = '                 ';
     const dimColor = '\x1B[38;5;242m'; // medium grey for data payload
 
     for (var i = 0; i < lines.length; i++) {
@@ -273,10 +269,10 @@ class DShorthandPrinter extends DPrettyPrinter {
         if (isColorEnabled) {
           formattedLines.add(
             '$_timeColor[$timeStr]$_resetColor $emoji '
-            '$color$traceStr${lines[i]}$_resetColor',
+            '$color${lines[i]}$_resetColor',
           );
         } else {
-          formattedLines.add('[$timeStr] $emoji $traceStr${lines[i]}');
+          formattedLines.add('[$timeStr] $emoji ${lines[i]}');
         }
       } else {
         // For Data payloads, dim the color so it doesn't clutter the console

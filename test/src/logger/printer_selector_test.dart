@@ -1,4 +1,5 @@
 import 'package:diqit_logging/diqit_logging.dart';
+import 'package:diqit_logging/src/logger/printer_selector.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -42,7 +43,8 @@ void main() {
       expect(result, isNot(equals(minimalPrinter)));
     });
 
-    test('should return trace printer for full methods without countMethod', () {
+    test('should return trace printer for full methods without countMethod',
+        () {
       final result = selector.select(isShorthand: false);
       expect(result, equals(tracePrinter));
     });
