@@ -279,8 +279,8 @@ void main() {
     });
 
     test('createChild produces namespace path in output', () {
-      final kdsLogger = DiqitLogger.createChild('kds');
-      kdsLogger.i('hierarchical_child_path_KDS_started');
+      final kdsLogger = DiqitLogger.root.createChild('kds');
+      kdsLogger.log(Level.info, 'hierarchical_child_path_KDS_started');
 
       final logs = DiqitLogger.getLogHistory();
       final logLines = logs.expand((e) => e.lines).toList();
@@ -293,9 +293,9 @@ void main() {
     });
 
     test('nested createChild produces slash-delimited path', () {
-      final kdsLogger = DiqitLogger.createChild('kds');
+      final kdsLogger = DiqitLogger.root.createChild('kds');
       final gridLogger = kdsLogger.createChild('order_grid');
-      gridLogger.d('hierarchical_nested_path_test');
+      gridLogger.log(Level.debug, 'hierarchical_nested_path_test');
 
       final logs = DiqitLogger.getLogHistory();
       final logLines = logs.expand((e) => e.lines).toList();
@@ -321,11 +321,11 @@ void main() {
     });
 
     test('createChild with trace and context', () async {
-      final kdsLogger = DiqitLogger.createChild('kds');
+      final kdsLogger = DiqitLogger.root.createChild('kds');
       await DiqitLogger.runTraced(
         TraceId.manual('bump', 1),
         () async {
-          kdsLogger.i('child_path_trace_ctx_test', tag: LogTag.custom('kds.bump'));
+          kdsLogger.log(Level.info, 'child_path_trace_ctx_test', tag: LogTag.custom('kds.bump'));
         },
         context: {'order_id': 'ORD-001'},
       );

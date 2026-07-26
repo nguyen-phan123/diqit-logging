@@ -28,18 +28,23 @@ import 'package:logger/logger.dart';
 /// {@endtemplate}
 class DiqitLogger {
   /// {@macro diqit_logging}
-  DiqitLogger();
-  static final DiqitLogger _instance = DiqitLogger._();
+  DiqitLogger([this._path = '']);
+
+  /// Shared in-memory buffer across all logger instances.
+  static final _globalBuffer = MemoryOutput(bufferSize: 1000);
+
+  /// The default root logger instance for static convenience API.
+  static final DiqitLogger root = DiqitLogger._();
 
   // * --- Configuration State ---
   late LoggerConfig _config;
   bool _initialized = false;
+  final String _path;
 
   // * --- internal Logger Instance ---
   Logger? _activeLogger;
 
   // * --- Output State ---
-  final _memoryOutput = MemoryOutput(bufferSize: 1000);
   AdvancedFileOutput? _fileOutput;
 
   // * --- Helpers ---
@@ -47,7 +52,7 @@ class DiqitLogger {
   final _minimalPrinter = DShorthandPrinter();
   final _tracePrinter = DPrettyPrinter.trace();
 
-  DiqitLogger._() {
+  DiqitLogger._() : _path = '' {
     ZoneTrace.onError = _onZoneTraceError;
   }
 
@@ -56,7 +61,7 @@ class DiqitLogger {
     StackTrace stackTrace,
     TraceId traceId,
   ) {
-    _instance._log(
+    root._log(
       Level.error,
       'Uncaught error in traced zone [$traceId]: $error',
       LogTag.none,
@@ -73,39 +78,24 @@ class DiqitLogger {
   /// This must be called before any logging occurs to ensure proper setup,
   /// especially for file logging or custom printers.
   static Future<void> initialize(LoggerConfig config) async {
-    await _instance._initializeInternal(config);
+    await root._initializeInternal(config);
   }
 
   /// Creates a child logger with the given namespace [name].
   ///
-  /// Child loggers inherit the parent's configuration (log level, tag filters,
-  /// file logging) while building a slash-delimited namespace path.
-  /// The namespace path appears in log output between the tag and content.
-  ///
-  /// Example:
-  /// ```dart
-  /// final kdsLogger = DiqitLogger.createChild('kds');
-  /// kdsLogger.i('KDS started');  // Output: [kds] -> KDS started
-  ///
-  /// final gridLogger = kdsLogger.createChild('order_grid');
-  /// gridLogger.i('Bump order');  // Output: [kds/order_grid] -> Bump order
-  /// ```
-  static DiqitChildLogger createChild(String name) {
-    return DiqitChildLogger._(name);
+  /// Child loggers inherit the parent's configuration while building a
+  /// slash-delimited namespace path.
+  DiqitLogger createChild(String name) {
+    return DiqitLogger._child(_path.isEmpty ? name : '$_path/$name');
   }
 
-  /// Unified log method replacing all shorthand/full variants.
+  DiqitLogger._child(this._path);
+
+  /// Unified log method — instance version.
   ///
-  /// [level] — log severity. [shorthand] — true uses minimal inline printer,
-  /// false uses full trace printer with stack frames.
-  ///
-  /// Example:
-  /// ```dart
-  /// DiqitLogger.log(Level.info, 'hello', tag: LogTag.order);
-  /// DiqitLogger.log(Level.error, 'fail', error: e, stackTrace: s,
-  ///     traceId: TraceId.manual('login', 1), shorthand: false);
-  /// ```
-  static void log(
+  /// Logs through this instance with its own config, printers, and converters.
+  /// The path from this instance's `_path` is automatically injected.
+  void log(
     Level level,
     String message, {
     dynamic data,
@@ -119,25 +109,16 @@ class DiqitLogger {
   }) {
     final printer = countMethod != null
         ? DPrettyPrinter.trace(
-            methodCount: countMethod,
-            stackTraceBeginIndex: 0,
-          )
+            methodCount: countMethod, stackTraceBeginIndex: 0)
         : shorthand
-            ? _instance._minimalPrinter
-            : _instance._tracePrinter;
-
-    _instance._log(
-      level,
-      message,
-      tag,
-      error,
-      stackTrace,
-      data: data,
-      printer: printer,
-      traceId: traceId,
-      context: context,
-    );
+            ? _minimalPrinter
+            : _tracePrinter;
+    _log(level, message, tag, error, stackTrace,
+        data: data, printer: printer,
+        traceId: traceId, context: context);
   }
+
+  // * --- Static Log API (backward compat) ---
 
   /// Updates the logger configuration at runtime.
   ///
@@ -156,27 +137,27 @@ class DiqitLogger {
   /// await DiqitLogger.updateConfig(newConfig);
   /// ```
   static Future<void> updateConfig(LoggerConfig config) async {
-    await _instance._updateConfigInternal(config);
+    await root._updateConfigInternal(config);
   }
 
   /// Dynamically enables or disables console logging.
   ///
   /// Useful for toggling log output at runtime without re-initializing.
   static void setConsoleLogging(bool enabled) =>
-      _instance._setConsoleLoggingInternal(enabled);
+      root._setConsoleLoggingInternal(enabled);
 
   /// Returns a list of recent log events kept in the memory buffer.
   ///
   /// The buffer size is limited. Useful for viewing logs inside the app
   /// (e.g. debug page).
   static List<OutputEvent> getLogHistory() =>
-      _instance._memoryOutput.buffer.toList();
+      _globalBuffer.buffer.toList();
 
   /// Exports the recent logs as a formatted string.
   ///
   /// [lastN] - Optional: Limit to the last N lines.
   static String exportLogs({int? lastN}) {
-    var entries = _instance._memoryOutput.buffer.toList();
+    var entries = _globalBuffer.buffer.toList();
     if (lastN != null && entries.length > lastN) {
       entries = entries.sublist(entries.length - lastN);
     }
@@ -221,21 +202,36 @@ class DiqitLogger {
   /// 2. **TypeConverter check** — if registered converter exists, use it
   /// 3. **Fallback** — call `data.toString()`
   static void registerConverter<T>(TypeConverter<T> converter) {
-    _instance._typeConverterRegistry.register<T>(converter);
+    root._typeConverterRegistry.register<T>(converter);
   }
 
   /// Unregister a type converter.
   ///
   /// Returns `true` if a converter was removed, `false` otherwise.
   static bool unregisterConverter<T>() {
-    return _instance._typeConverterRegistry.unregister<T>();
+    return root._typeConverterRegistry.unregister<T>();
   }
 
   /// Returns the type converter registry instance for advanced usage.
   ///
   /// Most users should use [registerConverter] instead.
   static TypeConverterRegistry get typeConverterRegistry =>
-      _instance._typeConverterRegistry;
+      root._typeConverterRegistry;
+
+  // * --- Per-Instance Converter API ---
+
+  /// Register a type converter on this logger instance only.
+  ///
+  /// Scoped to this instance — does NOT affect root or other instances.
+  /// Use the static [registerConverter] for root-wide converters.
+  void addConverter<T>(TypeConverter<T> converter) {
+    _typeConverterRegistry.register<T>(converter);
+  }
+
+  /// Unregister a type converter on this logger instance.
+  bool removeConverter<T>() {
+    return _typeConverterRegistry.unregister<T>();
+  }
 
   // * --- Trace Propagation Public API ---
 
@@ -298,7 +294,7 @@ class DiqitLogger {
   /// Returns log history events specifically matching [traceId].
   static List<OutputEvent> getLogHistoryForTrace(String traceId) {
     final searchTag = '[$traceId]';
-    return _instance._memoryOutput.buffer.where((event) {
+    return _globalBuffer.buffer.where((event) {
       return event.lines.any((line) => line.contains(searchTag));
     }).toList();
   }
@@ -306,7 +302,7 @@ class DiqitLogger {
   /// Exports formatted log entries matching [traceId].
   static String exportLogsForTrace(String traceId, {int? lastN}) {
     final searchTag = '[$traceId]';
-    var entries = _instance._memoryOutput.buffer.where((event) {
+    var entries = _globalBuffer.buffer.where((event) {
       return event.lines.any((line) => line.contains(searchTag));
     }).toList();
 
@@ -345,7 +341,7 @@ class DiqitLogger {
     final searchPattern = value is String
         ? '"$key":"$value"'
         : '"$key":$value';
-    return _instance._memoryOutput.buffer.where((event) {
+    return _globalBuffer.buffer.where((event) {
       return event.lines.any((line) => line.contains(searchPattern));
     }).toList();
   }
@@ -361,7 +357,7 @@ class DiqitLogger {
   /// ```
   static List<OutputEvent> getLogHistoryByPath(String path) {
     final searchTag = '[$path]';
-    return _instance._memoryOutput.buffer.where((event) {
+    return _globalBuffer.buffer.where((event) {
       return event.lines.any((line) => line.contains(searchTag));
     }).toList();
   }
@@ -441,7 +437,7 @@ class DiqitLogger {
     }
 
     // Always add memory output for history
-    outputs.add(_memoryOutput);
+    outputs.add(_globalBuffer);
 
     // Add file output if enabled and initialized
     if (_fileOutput != null && _config.enableFileLogging) {
@@ -475,6 +471,7 @@ class DiqitLogger {
       _config = LoggerConfig.development();
       _initialized = true;
       _activeLogger = _createLoggerInstance();
+      _registerDefaultConverters();
     }
 
     // Resolve trace ID: explicit parameter > zone context > null
@@ -490,7 +487,7 @@ class DiqitLogger {
       traceId: resolvedTraceId,
       typeConverterRegistry: _typeConverterRegistry,
       context: resolvedContext,
-      path: path,
+      path: path ?? (_path.isEmpty ? null : _path),
       source: ZoneTrace.sourceAppName,
       prefix: _config.prefixMessage,
     );
@@ -557,112 +554,112 @@ class DiqitLogger {
     }
   }
 
-  @Deprecated('Use log(Level.level, msg, shorthand: true) instead')
+  @Deprecated('Use root.log(Level.level, msg, shorthand: true) instead')
   static void t(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => log(Level.trace, message, data: data, tag: tag,
+  }) => root.log(Level.trace, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use log(Level.trace, msg, shorthand: false) instead')
+  @Deprecated('Use root.log(Level.trace, msg, shorthand: false) instead')
   static void trace(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
-  }) => log(Level.trace, message, data: data, tag: tag,
+  }) => root.log(Level.trace, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use log(Level.debug, msg, shorthand: true) instead')
+  @Deprecated('Use root.log(Level.debug, msg, shorthand: true) instead')
   static void d(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => log(Level.debug, message, data: data, tag: tag,
+  }) => root.log(Level.debug, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use log(Level.debug, msg, shorthand: false) instead')
+  @Deprecated('Use root.log(Level.debug, msg, shorthand: false) instead')
   static void debug(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
-  }) => log(Level.debug, message, data: data, tag: tag,
+  }) => root.log(Level.debug, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use log(Level.info, msg, shorthand: true) instead')
+  @Deprecated('Use root.log(Level.info, msg, shorthand: true) instead')
   static void i(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => log(Level.info, message, data: data, tag: tag,
+  }) => root.log(Level.info, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use log(Level.info, msg, shorthand: false) instead')
+  @Deprecated('Use root.log(Level.info, msg, shorthand: false) instead')
   static void info(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
-  }) => log(Level.info, message, data: data, tag: tag,
+  }) => root.log(Level.info, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use log(Level.warning, msg, shorthand: true) instead')
+  @Deprecated('Use root.log(Level.warning, msg, shorthand: true) instead')
   static void w(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => log(Level.warning, message, data: data, tag: tag,
+  }) => root.log(Level.warning, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use log(Level.warning, msg, shorthand: false) instead')
+  @Deprecated('Use root.log(Level.warning, msg, shorthand: false) instead')
   static void warning(String message, {
     dynamic data, LogTag tag = LogTag.none,
     DPrettyPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
-  }) => log(Level.warning, message, data: data, tag: tag,
+  }) => root.log(Level.warning, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use log(Level.error, msg, shorthand: true) instead')
+  @Deprecated('Use root.log(Level.error, msg, shorthand: true) instead')
   static void e(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
     DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => log(Level.error, message, data: data, tag: tag,
+  }) => root.log(Level.error, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
       traceId: traceId, context: context);
 
-  @Deprecated('Use log(Level.error, msg, shorthand: false) instead')
+  @Deprecated('Use root.log(Level.error, msg, shorthand: false) instead')
   static void error(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
     DPrettyPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
-  }) => log(Level.error, message, data: data, tag: tag,
+  }) => root.log(Level.error, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use log(Level.fatal, msg, shorthand: true) instead')
+  @Deprecated('Use root.log(Level.fatal, msg, shorthand: true) instead')
   static void ft(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
     DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => log(Level.fatal, message, data: data, tag: tag,
+  }) => root.log(Level.fatal, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
       traceId: traceId, context: context);
 
-  @Deprecated('Use log(Level.fatal, msg, shorthand: false) instead')
+  @Deprecated('Use root.log(Level.fatal, msg, shorthand: false) instead')
   static void fatal(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
     DPrettyPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
-  }) => log(Level.fatal, message, data: data, tag: tag,
+  }) => root.log(Level.fatal, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
@@ -684,7 +681,7 @@ class DiqitLogger {
     if (args != null && args.isNotEmpty) {
       finalMessage += '\nParams: $args';
     }
-    log(Level.debug, finalMessage,
+    root.log(Level.debug, finalMessage,
         tag: tag ?? LogTag.custom('function'),
         traceId: traceId, context: context);
   }
@@ -701,109 +698,6 @@ class DiqitLogger {
   }
 }
 
-/// {@template diqit_child_logger}
-/// A child logger with a namespace path, created via [DiqitLogger.createChild].
-///
-/// Delegates all logging to the root singleton while injecting the namespace
-/// path. Supports further nesting via [createChild].
-/// {@endtemplate}
-class DiqitChildLogger {
-  final String _path;
-
-  const DiqitChildLogger._(this._path);
-
-  /// Returns the current namespace path (e.g., `kds/order_grid`).
-  String get path => _path;
-
-  /// Creates a nested child logger with [name] appended to this path.
-  DiqitChildLogger createChild(String name) {
-    return DiqitChildLogger._(_path.isEmpty ? name : '$_path/$name');
-  }
-
-  /// Unified log method injecting this child's namespace path.
-  ///
-  /// All parameters mirror [DiqitLogger.log].
-  void log(
-    Level level,
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-    bool shorthand = true,
-    int? countMethod,
-  }) =>
-      DiqitLogger._instance._log(
-        level, message, tag, error, stackTrace,
-        data: data, printer: _resolvePrinter(shorthand, countMethod),
-        traceId: traceId, context: context, path: _path,
-      );
-
-  DPrettyPrinter _resolvePrinter(bool shorthand, int? countMethod) {
-    if (countMethod != null) {
-      return DPrettyPrinter.trace(
-          methodCount: countMethod, stackTraceBeginIndex: 0);
-    }
-    return shorthand
-        ? DiqitLogger._instance._minimalPrinter
-        : DiqitLogger._instance._tracePrinter;
-  }
-
-  @Deprecated('Use log(Level.trace, msg) instead')
-  void t(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) => log(Level.trace, message, data: data, tag: tag,
-      traceId: traceId, context: context);
-
-  @Deprecated('Use log(Level.debug, msg) instead')
-  void d(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) => log(Level.debug, message, data: data, tag: tag,
-      traceId: traceId, context: context);
-
-  @Deprecated('Use log(Level.info, msg) instead')
-  void i(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) => log(Level.info, message, data: data, tag: tag,
-      traceId: traceId, context: context);
-
-  @Deprecated('Use log(Level.warning, msg) instead')
-  void w(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) => log(Level.warning, message, data: data, tag: tag,
-      traceId: traceId, context: context);
-
-  @Deprecated('Use log(Level.error, msg) instead')
-  void e(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    dynamic error, StackTrace? stackTrace,
-    DPrettyPrinter? printer, TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) => log(Level.error, message, data: data, tag: tag,
-      error: error, stackTrace: stackTrace,
-      traceId: traceId, context: context);
-
-  @Deprecated('Use log(Level.fatal, msg) instead')
-  void ft(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    dynamic error, StackTrace? stackTrace,
-    DPrettyPrinter? printer, TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) => log(Level.fatal, message, data: data, tag: tag,
-      error: error, stackTrace: stackTrace,
-      traceId: traceId, context: context);
-}
-
 /// Inline filter that delegates tag filtering logic to LoggerConfig.
 class _InlineFilter extends LogFilter {
   final LoggerConfig config;
@@ -812,23 +706,17 @@ class _InlineFilter extends LogFilter {
 
   @override
   bool shouldLog(LogEvent event) {
-    if (event.level.value < config.minLogLevel.value) {
-      return false;
-    }
+    if (event.level.value < config.minLogLevel.value) return false;
 
     final hasSearchPatterns = config.searchTagPatterns != null &&
         config.searchTagPatterns!.isNotEmpty;
 
     if (event.message is DLogMessage) {
       final msg = event.message as DLogMessage;
-      if (msg.tag == LogTag.none) {
-        // When search patterns are active, untagged logs should be hidden
-        return !hasSearchPatterns;
-      }
+      if (msg.tag == LogTag.none) return !hasSearchPatterns;
       return config.isTagEnabled(msg.tag);
     }
 
-    // Non-DLogMessage: hide when search patterns are active
     return !hasSearchPatterns;
   }
 }

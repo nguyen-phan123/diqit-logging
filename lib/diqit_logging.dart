@@ -1,6 +1,7 @@
 /// My new Dart package
 library;
 
+export 'package:logger/logger.dart' show Level, LogFilter, LogOutput, LogEvent, OutputEvent;
 export 'src/diqit_logging.dart';
 export 'src/logger/diqit_pretty_printer.dart';
 export 'src/logger/log_tag.dart';
