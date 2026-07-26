@@ -43,3 +43,7 @@ _Avoid_: Type formatter, Custom serializer, Value printer
 **Log History**:
 An in-memory rolling buffer of formatted log events maintained for real-time inspection and on-device debugging. Supports filtering by trace ID via `getLogHistoryForTrace`.
 _Avoid_: Log cache, Memory store, Event queue
+
+**NetworkOutput**:
+A `LogOutput` implementation that starts an internal WebSocket server on a configurable port, streaming formatted log lines to any connected client. On connect, dumps the full Log History (up to 1000 events) then streams new events live. Designed for remote debugging — a developer connects with `websocat ws://<device-ip>:9229` to observe logs in real time without physical device access. Enabled via `LoggerConfig.enableNetworkLogging`.
+_Avoid_: WebSocket output, Remote logger, Socket stream
