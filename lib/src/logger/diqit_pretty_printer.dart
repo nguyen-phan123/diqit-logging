@@ -228,17 +228,13 @@ class _PaddingPrinter extends LogPrinter {
   }
 }
 
-/// A custom inline printer for shorthand logs (d, i, w, e) natively supporting
+/// A custom inline printer for shorthand logs natively supporting
 /// colors and emojis without using boxing frames.
-class DShorthandPrinter extends DPrettyPrinter {
+/// Implements LogPrinter directly — no PrettyPrinter base class dependency.
+class DShorthandPrinter extends LogPrinter {
   final bool enableColors;
 
-  DShorthandPrinter({this.enableColors = true})
-      : super(
-          colors: enableColors,
-          noBoxingByDefault: true,
-          printEmojis: false,
-        );
+  DShorthandPrinter({this.enableColors = true});
 
   static const Map<Level, String> _levelColors = {
     Level.trace: '\x1B[38;5;244m', // grey
@@ -250,7 +246,10 @@ class DShorthandPrinter extends DPrettyPrinter {
   };
 
   static const String _resetColor = '\x1B[0m';
-  static const String _timeColor = '\x1B[38;5;240m'; // dim grey
+  static const String _timeColor = '\x1B[38;5;240m';
+
+  static const _emojis = DPrettyPrinter.mixedEmojis;
+  static bool get _isColorSupported => DPrettyPrinter.isColorSupported;
 
   @override
   List<String> log(LogEvent event) {
@@ -262,9 +261,9 @@ class DShorthandPrinter extends DPrettyPrinter {
     final ms = time.millisecond.toString().padLeft(3, '0');
     final timeStr = '$h:$m:$s.$ms';
 
-    final emoji = DPrettyPrinter.mixedEmojis[event.level] ?? '';
+    final emoji = _emojis[event.level] ?? '';
     final color = _levelColors[event.level] ?? '';
-    final isColorEnabled = enableColors && DPrettyPrinter.isColorSupported;
+    final isColorEnabled = enableColors && _isColorSupported;
 
     final lines = messageStr.split('\n');
     final formattedLines = <String>[];

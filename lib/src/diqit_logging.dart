@@ -462,7 +462,7 @@ class DiqitLogger {
     dynamic error,
     StackTrace? stackTrace, {
     dynamic data,
-    DPrettyPrinter? printer,
+    LogPrinter? printer,
     TraceId? traceId,
     Map<String, dynamic>? context,
     String? path,
@@ -557,7 +557,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.level, msg, shorthand: true) instead')
   static void t(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
+    LogPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
   }) => root.log(Level.trace, message, data: data, tag: tag,
       traceId: traceId, context: context);
@@ -565,7 +565,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.trace, msg, shorthand: false) instead')
   static void trace(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, int? countMethod,
+    LogPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
   }) => root.log(Level.trace, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
@@ -574,7 +574,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.debug, msg, shorthand: true) instead')
   static void d(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
+    LogPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
   }) => root.log(Level.debug, message, data: data, tag: tag,
       traceId: traceId, context: context);
@@ -582,7 +582,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.debug, msg, shorthand: false) instead')
   static void debug(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, int? countMethod,
+    LogPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
   }) => root.log(Level.debug, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
@@ -591,7 +591,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.info, msg, shorthand: true) instead')
   static void i(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
+    LogPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
   }) => root.log(Level.info, message, data: data, tag: tag,
       traceId: traceId, context: context);
@@ -599,7 +599,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.info, msg, shorthand: false) instead')
   static void info(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, int? countMethod,
+    LogPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
   }) => root.log(Level.info, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
@@ -608,7 +608,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.warning, msg, shorthand: true) instead')
   static void w(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, TraceId? traceId,
+    LogPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
   }) => root.log(Level.warning, message, data: data, tag: tag,
       traceId: traceId, context: context);
@@ -616,7 +616,7 @@ class DiqitLogger {
   @Deprecated('Use root.log(Level.warning, msg, shorthand: false) instead')
   static void warning(String message, {
     dynamic data, LogTag tag = LogTag.none,
-    DPrettyPrinter? printer, int? countMethod,
+    LogPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
   }) => root.log(Level.warning, message, data: data, tag: tag,
       traceId: traceId, context: context, shorthand: false,
@@ -626,7 +626,7 @@ class DiqitLogger {
   static void e(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
-    DPrettyPrinter? printer, TraceId? traceId,
+    LogPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
   }) => root.log(Level.error, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
@@ -636,7 +636,7 @@ class DiqitLogger {
   static void error(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
-    DPrettyPrinter? printer, int? countMethod,
+    LogPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
   }) => root.log(Level.error, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
@@ -647,7 +647,7 @@ class DiqitLogger {
   static void ft(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
-    DPrettyPrinter? printer, TraceId? traceId,
+    LogPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
   }) => root.log(Level.fatal, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
@@ -657,7 +657,7 @@ class DiqitLogger {
   static void fatal(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
-    DPrettyPrinter? printer, int? countMethod,
+    LogPrinter? printer, int? countMethod,
     TraceId? traceId, Map<String, dynamic>? context,
   }) => root.log(Level.fatal, message, data: data, tag: tag,
       error: error, stackTrace: stackTrace,
