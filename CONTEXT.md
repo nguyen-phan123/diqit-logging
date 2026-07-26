@@ -29,12 +29,8 @@ A typed unique identifier for tracing a logical business operation across async 
 _Avoid_: Correlation ID, Request UUID, Trace string
 
 **ZoneTrace**:
-An execution context powered by Dart `Zone` that carries a stack of `TraceId` values, enabling nested traces and automatic propagation across futures, streams, and event boundaries. Logs within a traced zone automatically inherit the current trace stack without manual parameter passing.
+An execution context powered by Dart `Zone` that carries a stack of `TraceId` values, enabling nested traces and automatic propagation across futures, streams, and event boundaries. Logs within a traced zone automatically inherit the current trace stack without manual parameter passing. Also carries source identity for cross-app attribution and provides Socket.IO metadata transport via `injectTraceId` / `extractTraceId`.
 _Avoid_: TraceZone, Logger scope, Request context, Thread local
-
-**Trace Envelope**:
-The standardized Socket.IO event transport wrapper carrying metadata (including `traceId` and source application) alongside the event payload across mobile POS apps. Uses `TraceEnvelope.injectTraceId` / `extractTraceId` with `TraceId` instances, serializing to string for wire transport.
-_Avoid_: Custom payload header, Trace DTO
 
 **Loggable**:
 A mixin protocol enabling domain entities to define their structured log representation via `toLoggableMap()`. DiqitLogger automatically detects and formats objects implementing this protocol, producing readable key-value output instead of opaque `toString()` results.

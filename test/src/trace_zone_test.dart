@@ -116,14 +116,14 @@ void main() {
     });
   });
 
-  group('TraceEnvelope', () {
+  group('ZoneTrace Metadata Transport', () {
     test('extracts traceId from metadata envelope', () {
       final payload = {
         'meta': {'traceId': 't-socket-555'},
         'data': {'orderId': '101'}
       };
 
-      final traceId = TraceEnvelope.extractTraceId(payload);
+      final traceId = ZoneTrace.extractTraceId(payload);
       expect(traceId, equals('t-socket-555'));
     });
 
@@ -132,7 +132,7 @@ void main() {
 
       final result = ZoneTrace.runTracedSync(
         trace,
-        () => TraceEnvelope.injectTraceId({'orderId': '202'}),
+        () => ZoneTrace.injectTraceId({'orderId': '202'}),
       );
 
       expect(result['meta'], isA<Map<String, dynamic>>());

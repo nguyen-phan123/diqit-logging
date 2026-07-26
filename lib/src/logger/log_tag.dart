@@ -4,8 +4,6 @@ class LogTag {
   const LogTag(this.label);
 
   static const LogTag none = LogTag('');
-  @deprecated
-  static const LogTag general = LogTag('GENERAL');
 
   // Layers
   static const LogTag ui = LogTag('UI');

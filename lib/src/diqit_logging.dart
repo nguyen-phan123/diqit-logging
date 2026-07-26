@@ -1,10 +1,14 @@
-import 'package:diqit_logging/src/internal/file_log_manager.dart';
-import 'package:diqit_logging/src/internal/log_history_manager.dart';
-import 'package:diqit_logging/src/logger/logger.dart';
+import 'dart:io';
+
+import 'package:diqit_logging/src/logger/diqit_log_message.dart';
+import 'package:diqit_logging/src/logger/diqit_log_printer.dart';
+import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
+import 'package:diqit_logging/src/logger/log_tag.dart';
+import 'package:diqit_logging/src/logger/logger_config.dart';
+import 'package:diqit_logging/src/logger/printer_selector.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
 import 'package:diqit_logging/src/logger/type_converter.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
-import 'package:diqit_logging/src/trace/trace_envelope.dart';
 import 'package:logger/logger.dart';
 
 /// {@template diqit_logging}
@@ -36,9 +40,11 @@ class DiqitLogger {
   // * --- internal Logger Instance ---
   Logger? _activeLogger;
 
+  // * --- Output State ---
+  final _memoryOutput = MemoryOutput(bufferSize: 1000);
+  AdvancedFileOutput? _fileOutput;
+
   // * --- Helpers ---
-  final _historyManager = LogHistoryManager();
-  final _fileManager = FileLogManager();
   final _typeConverterRegistry = TypeConverterRegistry();
   final _printerSelector = PrinterSelector(
     minimalPrinter: DShorthandPrinter(),
@@ -123,13 +129,30 @@ class DiqitLogger {
   /// The buffer size is limited. Useful for viewing logs inside the app
   /// (e.g. debug page).
   static List<OutputEvent> getLogHistory() =>
-      _instance._historyManager.getLogHistory();
+      _instance._memoryOutput.buffer.toList();
 
   /// Exports the recent logs as a formatted string.
   ///
   /// [lastN] - Optional: Limit to the last N lines.
-  static String exportLogs({int? lastN}) =>
-      _instance._historyManager.exportLogs(lastN: lastN);
+  static String exportLogs({int? lastN}) {
+    var entries = _instance._memoryOutput.buffer.toList();
+    if (lastN != null && entries.length > lastN) {
+      entries = entries.sublist(entries.length - lastN);
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('=== DiqitLogger Export ===');
+    buffer.writeln('Generated: ${DateTime.now().toIso8601String()}');
+    buffer.writeln('=' * 50);
+
+    for (final event in entries) {
+      for (final line in event.lines) {
+        buffer.writeln(line);
+      }
+      buffer.writeln('-' * 20);
+    }
+    return buffer.toString();
+  }
 
   // * --- Type Converter Public API ---
 
@@ -232,12 +255,37 @@ class DiqitLogger {
   }
 
   /// Returns log history events specifically matching [traceId].
-  static List<OutputEvent> getLogHistoryForTrace(String traceId) =>
-      _instance._historyManager.getLogHistoryForTrace(traceId);
+  static List<OutputEvent> getLogHistoryForTrace(String traceId) {
+    final searchTag = '[$traceId]';
+    return _instance._memoryOutput.buffer.where((event) {
+      return event.lines.any((line) => line.contains(searchTag));
+    }).toList();
+  }
 
   /// Exports formatted log entries matching [traceId].
-  static String exportLogsForTrace(String traceId, {int? lastN}) =>
-      _instance._historyManager.exportLogsForTrace(traceId, lastN: lastN);
+  static String exportLogsForTrace(String traceId, {int? lastN}) {
+    final searchTag = '[$traceId]';
+    var entries = _instance._memoryOutput.buffer.where((event) {
+      return event.lines.any((line) => line.contains(searchTag));
+    }).toList();
+
+    if (lastN != null && entries.length > lastN) {
+      entries = entries.sublist(entries.length - lastN);
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('=== DiqitLogger Trace Export [$traceId] ===');
+    buffer.writeln('Generated: ${DateTime.now().toIso8601String()}');
+    buffer.writeln('=' * 50);
+
+    for (final event in entries) {
+      for (final line in event.lines) {
+        buffer.writeln(line);
+      }
+      buffer.writeln('-' * 20);
+    }
+    return buffer.toString();
+  }
 
   /// Returns log history events matching a context key-value pair.
   ///
@@ -252,8 +300,14 @@ class DiqitLogger {
   static List<OutputEvent> getLogHistoryByContext(
     String key,
     dynamic value,
-  ) =>
-      _instance._historyManager.getLogHistoryByContext(key, value);
+  ) {
+    final searchPattern = value is String
+        ? '"$key":"$value"'
+        : '"$key":$value';
+    return _instance._memoryOutput.buffer.where((event) {
+      return event.lines.any((line) => line.contains(searchPattern));
+    }).toList();
+  }
 
   /// Returns log history events matching a namespace [path].
   ///
@@ -264,8 +318,12 @@ class DiqitLogger {
   /// ```dart
   /// final gridLogs = DiqitLogger.getLogHistoryByPath('kds/order_grid');
   /// ```
-  static List<OutputEvent> getLogHistoryByPath(String path) =>
-      _instance._historyManager.getLogHistoryByPath(path);
+  static List<OutputEvent> getLogHistoryByPath(String path) {
+    final searchTag = '[$path]';
+    return _instance._memoryOutput.buffer.where((event) {
+      return event.lines.any((line) => line.contains(searchTag));
+    }).toList();
+  }
 
   // * --- Internal Implementation Methods ---
 
@@ -275,12 +333,12 @@ class DiqitLogger {
     _config = config;
     _initialized = true;
 
-    await _fileManager.initialize(config);
+    await _initializeFileOutput(config);
 
     _activeLogger = _createLoggerInstance();
 
     // Wire cross-app source identity
-    TraceEnvelope.sourceAppName = config.appName;
+    ZoneTrace.sourceAppName = config.appName;
 
     // Register default type converters
     _registerDefaultConverters();
@@ -312,12 +370,12 @@ class DiqitLogger {
 
     _config = config;
 
-    await _fileManager.initialize(config);
+    await _initializeFileOutput(config);
 
     _activeLogger = _createLoggerInstance();
 
     // Wire cross-app source identity
-    TraceEnvelope.sourceAppName = config.appName;
+    ZoneTrace.sourceAppName = config.appName;
   }
 
   void _setConsoleLoggingInternal(bool enabled) {
@@ -342,11 +400,11 @@ class DiqitLogger {
     }
 
     // Always add memory output for history
-    outputs.add(_historyManager.output);
+    outputs.add(_memoryOutput);
 
     // Add file output if enabled and initialized
-    if (_fileManager.output != null && _config.enableFileLogging) {
-      outputs.add(_fileManager.output!);
+    if (_fileOutput != null && _config.enableFileLogging) {
+      outputs.add(_fileOutput!);
     }
 
     var finalPrinter = _config.printer;
@@ -398,7 +456,7 @@ class DiqitLogger {
       _typeConverterRegistry,
       resolvedContext,
       path,
-      TraceEnvelope.sourceAppName,
+      ZoneTrace.sourceAppName,
     );
 
     final targetLogger = printer != null
@@ -428,6 +486,39 @@ class DiqitLogger {
 
     // Multiple traces: create composite
     return _CompositeTraceId(stack);
+  }
+
+  /// Initializes file logging output based on config.
+  Future<void> _initializeFileOutput(LoggerConfig config) async {
+    _fileOutput = null;
+    if (!config.enableFileLogging) return;
+
+    final logDir = config.logDirectory;
+    if (logDir == null) {
+      print('[DiqitLogger] File logging enabled but no logDirectory provided.');
+      return;
+    }
+
+    try {
+      final directory = Directory(logDir);
+      if (!directory.existsSync()) {
+        await directory.create(recursive: true);
+      }
+
+      final separator = Platform.pathSeparator;
+      final cleanPath =
+          logDir.endsWith(separator) ? logDir : '$logDir$separator';
+
+      _fileOutput = AdvancedFileOutput(
+        path: '${cleanPath}diqit_logs.log',
+        maxFileSizeKB: 1024,
+      );
+
+      print('File logging initialized at ${cleanPath}diqit_logs.log');
+    } catch (e) {
+      print('Failed to initialize file logging: $e');
+      _fileOutput = null;
+    }
   }
 
   /// Logs a [Level.trace] message (Verbose).
@@ -1147,10 +1238,5 @@ class _CompositeTraceId implements TraceId {
   String toString() => _stack.map((t) => t.toString()).join(' > ');
 
   @override
-  TraceId withSuffix(String suffix) {
-    // Apply suffix to the innermost (last) trace
-    final updated = List<TraceId>.from(_stack);
-    updated[updated.length - 1] = updated.last.withSuffix(suffix);
-    return _CompositeTraceId(updated);
-  }
+  TraceId withSuffix(String suffix) => this;
 }

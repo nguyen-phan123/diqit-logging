@@ -11,4 +11,3 @@ export 'src/logger/printer_selector.dart';
 export 'src/logger/trace_id.dart';
 export 'src/logger/type_converter.dart';
 export 'src/logger/zone_trace.dart';
-export 'src/trace/trace_envelope.dart';

@@ -213,10 +213,6 @@ class DPrettyPrinter extends PrettyPrinter {
       paddingSize: paddingSize,
     );
   }
-
-  /// Alias for `minimal()` - backwards compatibility.
-  @Deprecated('Use DPrettyPrinter.minimal() instead')
-  factory DPrettyPrinter.cleanNoise() => DPrettyPrinter.minimal();
 }
 
 /// A custom inline printer for shorthand logs (d, i, w, e) natively supporting
