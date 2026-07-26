@@ -11,14 +11,10 @@ import 'package:logger/logger.dart';
 /// - [DPrettyPrinter.compactMixed] - Compact with mixed emojis (balanced).
 /// - [DPrettyPrinter.minimal] - Bare text only, for production/clean output.
 /// - [DPrettyPrinter.minimalAligned] - Minimal with padding for alignment.
-class DPrettyPrinter extends PrettyPrinter {
+class DPrettyPrinter {
   // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
-
-  static const int _defaultLineLength = 100;
-  static const int _defaultMethodCount = 5;
-  static const int _defaultStackTraceBeginIndex = 2;
 
   /// Compact emoji set using simple symbols (1 char each, minimal width).
   ///
@@ -69,130 +65,28 @@ class DPrettyPrinter extends PrettyPrinter {
   }
 
   // ---------------------------------------------------------------------------
-  // Constructor
-  // ---------------------------------------------------------------------------
-
-  DPrettyPrinter({
-    super.methodCount = 8,
-    super.errorMethodCount = 8,
-    super.lineLength = _defaultLineLength,
-    super.colors = true,
-    super.printEmojis = true,
-    super.dateTimeFormat = DateTimeFormat.onlyTime,
-    super.noBoxingByDefault = false,
-    super.stackTraceBeginIndex = _defaultStackTraceBeginIndex,
-    super.levelEmojis,
-  });
-
   // ---------------------------------------------------------------------------
   // Factory Constructors
   // ---------------------------------------------------------------------------
 
-  /// Full debugging printer with stack trace.
-  ///
-  /// Use when: debugging complex flows, tracing method calls.
-  /// Output: Box with emoji, message, and N lines of stack trace.
-  ///
-  /// Example:
-  /// ```dart
-  /// final logger = Logger(printer: DPrettyPrinter.trace());
-  /// ```
-  factory DPrettyPrinter.trace({
-    int methodCount = _defaultMethodCount,
-    int stackTraceBeginIndex = _defaultStackTraceBeginIndex,
-    Map<Level, String>? levelEmojis,
-  }) {
-    return DPrettyPrinter(
-      methodCount: methodCount,
-      stackTraceBeginIndex: stackTraceBeginIndex,
-      lineLength: _defaultLineLength,
-      colors: isColorSupported,
-      levelEmojis: levelEmojis,
-    );
-  }
+  /// Full debugging printer — same as shorthand, no boxing.
+  static LogPrinter trace({
+    int? methodCount,
+    int? stackTraceBeginIndex,
+  }) =>
+      DShorthandPrinter();
 
-  /// Compact printer: emoji + message, no box.
-  ///
-  /// Use when: you want readable logs without clutter but still visual.
-  /// Output: Single line with emoji prefix (uses default logger emojis).
-  ///
-  /// Example:
-  /// ```dart
-  /// final logger = Logger(printer: DPrettyPrinter.compact());
-  /// // Output: 💡 Info message
-  /// ```
-  factory DPrettyPrinter.compact({Map<Level, String>? levelEmojis}) {
-    return DPrettyPrinter(
-      methodCount: 0,
-      errorMethodCount: 0,
-      lineLength: _defaultLineLength,
-      colors: isColorSupported,
-      noBoxingByDefault: true,
-      printEmojis: true,
-      levelEmojis: levelEmojis,
-    );
-  }
+  static LogPrinter compact({Map<Level, String>? levelEmojis}) =>
+      DShorthandPrinter();
 
-  /// Compact printer with symbol-based emojis (minimal width).
-  ///
-  /// Use when: you want minimal visual noise and perfect terminal alignment.
-  /// Output: Single line with 1-char symbol prefix (·•ℹ⚠✖☠).
-  ///
-  /// Example:
-  /// ```dart
-  /// • Debug message
-  /// ℹ Info message
-  /// ⚠ Warning message
-  /// ```
-  factory DPrettyPrinter.compactSymbols() {
-    return DPrettyPrinter(
-      methodCount: 0,
-      errorMethodCount: 0,
-      lineLength: _defaultLineLength,
-      colors: isColorSupported,
-      noBoxingByDefault: true,
-      printEmojis: true,
-      levelEmojis: symbolsEmojis,
-    );
-  }
+  static LogPrinter compactSymbols() =>
+      DShorthandPrinter();
 
-  /// Compact printer with mixed emojis (balanced visual appeal & size).
-  ///
-  /// Use when: you want clear visual distinction with compact size.
-  /// Output: Single line with small emoji prefix (▫▪ℹ⚡❗💀).
-  ///
-  /// Example:
-  /// ```dart
-  /// ▪ Debug message
-  /// ℹ Info message
-  /// ⚡ Warning message
-  /// ```
-  factory DPrettyPrinter.compactMixed() {
-    return DPrettyPrinter(
-      methodCount: 0,
-      errorMethodCount: 0,
-      lineLength: _defaultLineLength,
-      colors: isColorSupported,
-      noBoxingByDefault: true,
-      printEmojis: true,
-      levelEmojis: mixedEmojis,
-    );
-  }
+  static LogPrinter compactMixed() =>
+      DShorthandPrinter();
 
-  /// Minimal printer: bare text only.
-  ///
-  /// Use when: production logs, file logging, or clean console output.
-  /// Output: Plain text message without formatting.
-  factory DPrettyPrinter.minimal() {
-    return DPrettyPrinter(
-      methodCount: 0,
-      errorMethodCount: 0,
-      lineLength: _defaultLineLength,
-      colors: isColorSupported,
-      noBoxingByDefault: true,
-      printEmojis: false,
-    );
-  }
+  static LogPrinter minimal() =>
+      DShorthandPrinter(enableColors: false);
 
   /// Minimal printer with alignment padding.
   ///
