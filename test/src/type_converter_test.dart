@@ -98,7 +98,8 @@ void main() {
       final logOutput = lastLog.lines.join('\n');
 
       expect(logOutput, contains('Event scheduled'));
-      expect(logOutput, contains('Data: 2024-07-26T14:30:00.000'));
+      expect(logOutput, contains('Data:'));
+      expect(logOutput, contains('2024-07-26T14:30:00.000'));
     });
 
     test('uses registered Duration converter', () {
@@ -111,7 +112,8 @@ void main() {
       final lastLog = DiqitLogger.getLogHistory().last;
       final logOutput = lastLog.lines.join('\n');
 
-      expect(logOutput, contains('Data: 42s'));
+      expect(logOutput, contains('Data:'));
+      expect(logOutput, contains('42s'));
     });
 
     test('Loggable takes precedence over TypeConverter', () {
@@ -142,7 +144,8 @@ void main() {
       final lastLog = DiqitLogger.getLogHistory().last;
       final logOutput = lastLog.lines.join('\n');
 
-      expect(logOutput, contains('Data: api.example.com'));
+      expect(logOutput, contains('Data:'));
+      expect(logOutput, contains('api.example.com'));
     });
 
     test('unregisterConverter removes converter', () {

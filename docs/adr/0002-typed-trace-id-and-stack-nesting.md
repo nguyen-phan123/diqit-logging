@@ -68,3 +68,7 @@ The `[#traceId]` prefix is embedded in `DLogMessage.toString()`, not injected by
 - **Positive**: `TraceId` factories enforce a consistent naming scheme across the codebase.
 - **Negative**: Breaking change for any code referencing `TraceZone`, `runInTraceZone`, or `runInNewTraceZone`.
 - **Negative**: `ZoneTrace` stack creates more objects per nesting level than the flat string approach.
+
+## Related ADRs
+- [0001: Zone-based Tracing](./0001-zone-based-tracing.md) — Superseded by this decision
+- [0003: Structured Object Logging](./0003-structured-logging-and-namespace-hierarchy.md) — Loggable protocol for entity data layer

@@ -222,6 +222,25 @@ class DiqitLogger {
     await _fileManager.initialize(config);
 
     _activeLogger = _createLoggerInstance();
+
+    // Register default type converters
+    _registerDefaultConverters();
+  }
+
+  /// Registers commonly-used type converters by default.
+  ///
+  /// Includes DateTime, Duration, and Uri. Users can override these
+  /// by calling `registerConverter<T>()` after initialization.
+  void _registerDefaultConverters() {
+    _typeConverterRegistry.register<DateTime>(
+      (dt) => dt.toIso8601String(),
+    );
+    _typeConverterRegistry.register<Duration>(
+      (d) => '${d.inMilliseconds}ms',
+    );
+    _typeConverterRegistry.register<Uri>(
+      (uri) => uri.toString(),
+    );
   }
 
   Future<void> _updateConfigInternal(LoggerConfig config) async {

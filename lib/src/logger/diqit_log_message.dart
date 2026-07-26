@@ -56,7 +56,7 @@ class DLogMessage {
     if (registry != null && data is Object) {
       final converted = registry.convert(data);
       if (converted != null) {
-        return 'Data: $converted';
+        return 'Data:\n  $converted';
       }
     }
 
@@ -77,45 +77,39 @@ class DLogMessage {
       return 'Data: {}';
     }
 
-    final buffer = StringBuffer('Data: {');
-    final entries = map.entries.toList();
-
-    for (var i = 0; i < entries.length; i++) {
-      final entry = entries[i];
-      final formattedValue = _formatLoggableValue(entry.value);
-      buffer.write('${entry.key}: $formattedValue');
-      if (i < entries.length - 1) {
-        buffer.write(', ');
-      }
-    }
-
-    buffer.write('}');
+    final buffer = StringBuffer('Data:\n');
+    _appendMapEntries(buffer, map.entries.toList(), indent: 2);
     return buffer.toString();
   }
 
   /// Recursively format a value from a Loggable map
-  static String _formatLoggableValue(dynamic value) {
+  static String _formatLoggableValue(dynamic value, {int indent = 0}) {
     if (value is Loggable) {
       final nestedMap = value.toLoggableMap();
       if (nestedMap.isEmpty) return '{}';
 
-      final buffer = StringBuffer('{');
-      final entries = nestedMap.entries.toList();
-
-      for (var i = 0; i < entries.length; i++) {
-        final entry = entries[i];
-        final formattedValue = _formatLoggableValue(entry.value);
-        buffer.write('${entry.key}: $formattedValue');
-        if (i < entries.length - 1) {
-          buffer.write(', ');
-        }
-      }
-
-      buffer.write('}');
+      final buffer = StringBuffer('{\n');
+      _appendMapEntries(buffer, nestedMap.entries.toList(),
+        indent: indent + 2);
+      buffer.write('${' ' * indent}}');
       return buffer.toString();
     }
 
     return value.toString();
+  }
+
+  /// Helper to format map entries with proper indentation
+  static void _appendMapEntries(
+    StringBuffer buffer,
+    List<MapEntry<String, dynamic>> entries, {
+    required int indent,
+  }) {
+    final indentStr = ' ' * indent;
+
+    for (final entry in entries) {
+      final formattedValue = _formatLoggableValue(entry.value, indent: indent);
+      buffer.write('$indentStr${entry.key}: $formattedValue\n');
+    }
   }
 
   static dynamic _toJsonSafe(dynamic value) {

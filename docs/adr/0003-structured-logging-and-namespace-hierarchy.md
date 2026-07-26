@@ -1,6 +1,6 @@
 # 0003: Structured Object Logging
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-07-26
 - **Authors**: Platform Team
 - **Inspired by**: [team_logger](https://github.com/vi-k/team_logger) Loggable pattern
@@ -89,7 +89,7 @@ class OrderEntity with Loggable {
 
 // Usage
 DiqitLogger.i('Order created', data: orderEntity);
-// Output: [10:30:45] ℹ [OTM] [ORDER] Order created
+// Output: [LEVEL] [ORDER] -> Order created
 //         Data: {uuid: abc-123, total: $45.50, items_count: 3, status: pending}
 ```
 
@@ -264,8 +264,7 @@ DiqitLogger.d('Request timeout', data: Duration(seconds: 30));
 ---
 
 ## Related ADRs
-- [0001: Zone-based Tracing](./0001-zone-based-tracing.md) — TraceZone foundation
-- [0002: Typed TraceId and Stack-based Nesting](./0002-typed-trace-id-and-stack-nesting.md) — TraceId value object
+- [0002: Typed TraceId and Stack-based Nesting](./0002-typed-trace-id-and-stack-nesting.md) — TraceId + ZoneTrace foundation for log format context
 
 ---
 
