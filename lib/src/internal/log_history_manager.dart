@@ -43,6 +43,43 @@ class LogHistoryManager {
     }).toList();
   }
 
+  /// Returns a snapshot of log events matching a context key-value pair.
+  ///
+  /// Searches for the JSON pattern `"key": value` in log lines.
+  /// Handles string and numeric values.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Find all logs related to order ORD-001
+  /// final orderLogs = history.getLogHistoryByContext('order_id', 'ORD-001');
+  /// ```
+  List<OutputEvent> getLogHistoryByContext(
+    String key,
+    dynamic value,
+  ) {
+    final searchPattern = value is String
+        ? '"$key":"$value"'
+        : '"$key":$value';
+    return _memoryOutput.buffer.where((event) {
+      return event.lines.any((line) => line.contains(searchPattern));
+    }).toList();
+  }
+
+  /// Returns a snapshot of log events matching a namespace [path].
+  ///
+  /// Matches the ns path format `[path]` in log lines.
+  ///
+  /// Example:
+  /// ```dart
+  /// final orderGridLogs = history.getLogHistoryByPath('kds/order_grid');
+  /// ```
+  List<OutputEvent> getLogHistoryByPath(String path) {
+    final searchTag = '[$path]';
+    return _memoryOutput.buffer.where((event) {
+      return event.lines.any((line) => line.contains(searchTag));
+    }).toList();
+  }
+
   /// Exports logs matching [traceId] as a formatted string.
   String exportLogsForTrace(String traceId, {int? lastN}) {
     final searchTag = '[$traceId]';

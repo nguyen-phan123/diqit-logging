@@ -4,6 +4,7 @@ import 'package:diqit_logging/src/logger/logger.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
 import 'package:diqit_logging/src/logger/type_converter.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
+import 'package:diqit_logging/src/trace/trace_envelope.dart';
 import 'package:logger/logger.dart';
 
 /// {@template diqit_logging}
@@ -71,6 +72,24 @@ class DiqitLogger {
   /// especially for file logging or custom printers.
   static Future<void> initialize(LoggerConfig config) async {
     await _instance._initializeInternal(config);
+  }
+
+  /// Creates a child logger with the given namespace [name].
+  ///
+  /// Child loggers inherit the parent's configuration (log level, tag filters,
+  /// file logging) while building a slash-delimited namespace path.
+  /// The namespace path appears in log output between the tag and content.
+  ///
+  /// Example:
+  /// ```dart
+  /// final kdsLogger = DiqitLogger.createChild('kds');
+  /// kdsLogger.i('KDS started');  // Output: [kds] -> KDS started
+  ///
+  /// final gridLogger = kdsLogger.createChild('order_grid');
+  /// gridLogger.i('Bump order');  // Output: [kds/order_grid] -> Bump order
+  /// ```
+  static DiqitChildLogger createChild(String name) {
+    return DiqitChildLogger._(name);
   }
 
   /// Updates the logger configuration at runtime.
@@ -159,10 +178,17 @@ class DiqitLogger {
   /// Returns the current active trace ID from the Zone, or null.
   static TraceId? get currentTraceId => ZoneTrace.currentTrace();
 
+  /// Returns the current zone context (entity metadata), or null.
+  static Map<String, dynamic>? get currentContext => ZoneTrace.currentContext();
+
   /// Wraps an async callback in a zone with automatic trace propagation.
   ///
   /// All logs within [callback] will automatically include [traceId].
   /// Nested traces append to the parent trace stack.
+  ///
+  /// Optional [context] carries structured entity metadata (e.g. order_id,
+  /// user_id) that is inherited by logs within this zone. When null, inherits
+  /// the parent zone's context.
   ///
   /// Example:
   /// ```dart
@@ -177,9 +203,10 @@ class DiqitLogger {
   /// ```
   static Future<T> runTraced<T>(
     TraceId traceId,
-    Future<T> Function() callback,
-  ) {
-    return ZoneTrace.runTraced(traceId, callback);
+    Future<T> Function() callback, {
+    Map<String, dynamic>? context,
+  }) {
+    return ZoneTrace.runTraced(traceId, callback, context: context);
   }
 
   /// Wraps a sync callback in a zone with automatic trace propagation.
@@ -198,9 +225,10 @@ class DiqitLogger {
   /// ```
   static T runTracedSync<T>(
     TraceId traceId,
-    T Function() callback,
-  ) {
-    return ZoneTrace.runTracedSync(traceId, callback);
+    T Function() callback, {
+    Map<String, dynamic>? context,
+  }) {
+    return ZoneTrace.runTracedSync(traceId, callback, context: context);
   }
 
   /// Returns log history events specifically matching [traceId].
@@ -210,6 +238,34 @@ class DiqitLogger {
   /// Exports formatted log entries matching [traceId].
   static String exportLogsForTrace(String traceId, {int? lastN}) =>
       _instance._historyManager.exportLogsForTrace(traceId, lastN: lastN);
+
+  /// Returns log history events matching a context key-value pair.
+  ///
+  /// Provides entity-based filtering independent of trace ID. For example,
+  /// find all logs related to a specific order regardless of which
+  /// operation (bump, cancel, update) produced them.
+  ///
+  /// Example:
+  /// ```dart
+  /// final logs = DiqitLogger.getLogHistoryByContext('order_id', 'ORD-001');
+  /// ```
+  static List<OutputEvent> getLogHistoryByContext(
+    String key,
+    dynamic value,
+  ) =>
+      _instance._historyManager.getLogHistoryByContext(key, value);
+
+  /// Returns log history events matching a namespace [path].
+  ///
+  /// Provides subsystem-based filtering using the path set by
+  /// [createChild]. For example, isolate all logs from the KDS order grid.
+  ///
+  /// Example:
+  /// ```dart
+  /// final gridLogs = DiqitLogger.getLogHistoryByPath('kds/order_grid');
+  /// ```
+  static List<OutputEvent> getLogHistoryByPath(String path) =>
+      _instance._historyManager.getLogHistoryByPath(path);
 
   // * --- Internal Implementation Methods ---
 
@@ -222,6 +278,9 @@ class DiqitLogger {
     await _fileManager.initialize(config);
 
     _activeLogger = _createLoggerInstance();
+
+    // Wire cross-app source identity
+    TraceEnvelope.sourceAppName = config.appName;
 
     // Register default type converters
     _registerDefaultConverters();
@@ -256,6 +315,9 @@ class DiqitLogger {
     await _fileManager.initialize(config);
 
     _activeLogger = _createLoggerInstance();
+
+    // Wire cross-app source identity
+    TraceEnvelope.sourceAppName = config.appName;
   }
 
   void _setConsoleLoggingInternal(bool enabled) {
@@ -313,6 +375,8 @@ class DiqitLogger {
     dynamic data,
     DPrettyPrinter? printer,
     TraceId? traceId,
+    Map<String, dynamic>? context,
+    String? path,
   }) {
     if (!_initialized) {
       _config = LoggerConfig.development();
@@ -323,12 +387,18 @@ class DiqitLogger {
     // Resolve trace ID: explicit parameter > zone context > null
     final resolvedTraceId = traceId ?? _resolveZoneTrace();
 
+    // Resolve context: explicit parameter > zone context > null
+    final resolvedContext = context ?? ZoneTrace.currentContext();
+
     final logMsg = DLogMessage(
       message,
       tag,
       data,
       resolvedTraceId,
       _typeConverterRegistry,
+      resolvedContext,
+      path,
+      TraceEnvelope.sourceAppName,
     );
 
     final targetLogger = printer != null
@@ -369,6 +439,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.trace,
@@ -382,6 +453,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.trace] message (Verbose).
@@ -394,6 +466,7 @@ class DiqitLogger {
     DPrettyPrinter? printer,
     int? countMethod,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.trace,
@@ -408,6 +481,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.trace] message specifically for flow execution tracing.
@@ -417,6 +491,7 @@ class DiqitLogger {
     DPrettyPrinter? printer,
     LogTag? tag,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) {
     final stackTrace = StackTrace.current.toString().split('\n');
     // Index 0: StackTrace.current
@@ -448,6 +523,7 @@ class DiqitLogger {
         customPrinter: printer,
       ),
       traceId: traceId,
+      context: context,
     );
   }
 
@@ -471,6 +547,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.debug,
@@ -484,6 +561,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.debug] message.
@@ -496,6 +574,7 @@ class DiqitLogger {
     DPrettyPrinter? printer,
     int? countMethod,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.debug,
@@ -510,6 +589,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.info] message.
@@ -521,6 +601,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.info,
@@ -534,6 +615,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.info] message.
@@ -546,6 +628,7 @@ class DiqitLogger {
     DPrettyPrinter? printer,
     int? countMethod,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.info,
@@ -560,6 +643,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.warning] message.
@@ -571,6 +655,7 @@ class DiqitLogger {
     LogTag tag = LogTag.none,
     DPrettyPrinter? printer,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.warning,
@@ -584,6 +669,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.warning] message.
@@ -596,6 +682,7 @@ class DiqitLogger {
     DPrettyPrinter? printer,
     int? countMethod,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.warning,
@@ -610,6 +697,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.error] message.
@@ -623,6 +711,7 @@ class DiqitLogger {
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.error,
@@ -636,6 +725,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.error] message.
@@ -650,6 +740,7 @@ class DiqitLogger {
     DPrettyPrinter? printer,
     int? countMethod,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.error,
@@ -664,6 +755,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
@@ -677,6 +769,7 @@ class DiqitLogger {
     StackTrace? stackTrace,
     DPrettyPrinter? printer,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.fatal,
@@ -690,6 +783,7 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
       );
 
   /// Logs a [Level.fatal] message (Critical failure).
@@ -704,6 +798,7 @@ class DiqitLogger {
     DPrettyPrinter? printer,
     int? countMethod,
     TraceId? traceId,
+    Map<String, dynamic>? context,
   }) =>
       _instance._log(
         Level.fatal,
@@ -718,11 +813,299 @@ class DiqitLogger {
           customPrinter: printer,
         ),
         traceId: traceId,
+        context: context,
+      );
+}
+
+/// {@template diqit_child_logger}
+/// A child logger with a namespace path, created via [DiqitLogger.createChild].
+///
+/// Child loggers delegate all logging to the root singleton while prepending
+/// their namespace path to every log message. They support further nesting
+/// via their own [createChild] method.
+///
+/// Example:
+/// ```dart
+/// final kdsLogger = DiqitLogger.createChild('kds');
+/// kdsLogger.i('KDS started');  // Output: [kds] -> KDS started
+///
+/// final gridLogger = kdsLogger.createChild('order_grid');
+/// gridLogger.d('Bump order');  // Output: [kds/order_grid] -> Bump order
+/// ```
+/// {@endtemplate}
+class DiqitChildLogger {
+  final String _path;
+
+  const DiqitChildLogger._(this._path);
+
+  /// Returns the current namespace path (e.g., `kds/order_grid`).
+  String get path => _path;
+
+  /// Creates a nested child logger with [name] appended to this path.
+  DiqitChildLogger createChild(String name) {
+    return DiqitChildLogger._(_path.isEmpty ? name : '$_path/$name');
+  }
+
+  /// Logs a [Level.trace] message (Verbose).
+  void t(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.trace, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: true, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.trace] message (Verbose, full version).
+  void trace(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.trace, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: false, countMethod: countMethod, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.debug] message.
+  void d(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.debug, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: true, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.debug] message (full version).
+  void debug(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.debug, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: false, countMethod: countMethod, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.info] message.
+  void i(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.info, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: true, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.info] message (full version).
+  void info(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.info, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: false, countMethod: countMethod, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.warning] message.
+  void w(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.warning, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: true, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.warning] message (full version).
+  void warning(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    DPrettyPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.warning, message, tag, null, null,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: false, countMethod: countMethod, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.error] message.
+  void e(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    DPrettyPrinter? printer,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.error, message, tag, error, stackTrace,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: true, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.error] message (full version).
+  void error(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    DPrettyPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.error, message, tag, error, stackTrace,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: false, countMethod: countMethod, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.fatal] message (Critical failure).
+  void ft(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    DPrettyPrinter? printer,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.fatal, message, tag, error, stackTrace,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: true, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a [Level.fatal] message (Critical failure, full version).
+  void fatal(String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    DPrettyPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger._instance._log(
+        Level.fatal, message, tag, error, stackTrace,
+        data: data,
+        printer: DiqitLogger._instance._printerSelector.select(
+          isShorthand: false, countMethod: countMethod, customPrinter: printer,
+        ),
+        traceId: traceId,
+        context: context,
+        path: _path,
+      );
+
+  /// Logs a flow execution trace.
+  void flow({
+    Map<String, dynamic>? args,
+    DPrettyPrinter? printer,
+    LogTag? tag,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      DiqitLogger.flow(
+        args: args,
+        printer: printer,
+        tag: tag,
+        traceId: traceId,
+        context: context,
       );
 }
 
 /// Inline filter that delegates tag filtering logic to LoggerConfig.
-/// Replaces the deleted DLogFilter shallow module.
 class _InlineFilter extends LogFilter {
   final LoggerConfig config;
 

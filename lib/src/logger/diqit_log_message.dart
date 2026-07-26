@@ -11,6 +11,9 @@ class DLogMessage {
   final dynamic data;
   final TraceId? traceId;
   final TypeConverterRegistry? typeConverterRegistry;
+  final Map<String, dynamic>? context;
+  final String? path;
+  final String? source;
 
   const DLogMessage(
     this.message, [
@@ -18,6 +21,9 @@ class DLogMessage {
     this.data,
     this.traceId,
     this.typeConverterRegistry,
+    this.context,
+    this.path,
+    this.source,
   ]);
 
   @override
@@ -28,6 +34,11 @@ class DLogMessage {
       buffer.write('[$traceId] ');
     }
 
+    if (context != null && context!.isNotEmpty) {
+      buffer.write(_formatContext(context!));
+      buffer.write(' ');
+    }
+
     buffer.write(message);
 
     if (data != null) {
@@ -35,6 +46,14 @@ class DLogMessage {
     }
 
     return buffer.toString();
+  }
+
+  static String _formatContext(Map<String, dynamic> context) {
+    try {
+      return jsonEncode(context);
+    } catch (_) {
+      return context.toString();
+    }
   }
 
   static String _formatData(

@@ -23,6 +23,7 @@ class LoggerConfig {
   final String prefixMessage;
   final bool allowCustomTags;
   final List<String>? searchTagPatterns;
+  final String? appName;
 
   LoggerConfig({
     this.minLogLevel = Level.debug,
@@ -36,6 +37,7 @@ class LoggerConfig {
     this.prefixMessage = '',
     this.allowCustomTags = false,
     this.searchTagPatterns,
+    this.appName,
   })  : enabledTags = enabledTags ?? Set.from(LogTag.values),
         disabledTags = disabledTags ?? {},
         printer = printer ?? _defaultPrinter(prefixMessage);
@@ -50,6 +52,7 @@ class LoggerConfig {
     String prefixMessage = '',
     LogLevel? minLogLevel,
     List<String>? searchTagPatterns,
+    String? appName,
   }) {
     const envTag = String.fromEnvironment('LOG_TAGS', defaultValue: '');
 
@@ -68,6 +71,7 @@ class LoggerConfig {
       prefixMessage: prefixMessage,
       allowCustomTags: true,
       searchTagPatterns: resolvedPatterns,
+      appName: appName,
     );
   }
 
@@ -76,6 +80,7 @@ class LoggerConfig {
     String? logDirectory,
     String prefixMessage = '',
     List<String>? searchTagPatterns,
+    String? appName,
   }) {
     return LoggerConfig(
       minLogLevel: LogLevel.warning,
@@ -87,6 +92,7 @@ class LoggerConfig {
       prefixMessage: prefixMessage,
       allowCustomTags: false,
       searchTagPatterns: searchTagPatterns,
+      appName: appName,
     );
   }
 
@@ -184,6 +190,7 @@ class LoggerConfig {
     LogOutput? output,
     String? prefixMessage,
     bool? allowCustomTags,
+    String? appName,
   }) {
     final newPrefix = prefixMessage ?? this.prefixMessage;
     final prefixChanged =
@@ -201,6 +208,7 @@ class LoggerConfig {
       output: output ?? this.output,
       prefixMessage: newPrefix,
       allowCustomTags: allowCustomTags ?? this.allowCustomTags,
+      appName: appName ?? this.appName,
     );
   }
 

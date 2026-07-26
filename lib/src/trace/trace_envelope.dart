@@ -2,8 +2,12 @@ import 'package:diqit_logging/src/logger/trace_id.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
 
 /// {@template trace_envelope}
-/// Helper utilities to extract and inject `traceId` metadata into/from
+/// Helper utilities to extract and inject metadata into/from
 /// Socket.IO event transport envelopes.
+///
+/// Metadata injected:
+/// - [traceIdKey]: active trace ID from zone or explicit parameter
+/// - [sourceKey]: app identity from [sourceAppName] (auto-injected when set)
 /// {@endtemplate}
 class TraceEnvelope {
   TraceEnvelope._();
@@ -13,6 +17,15 @@ class TraceEnvelope {
 
   /// Trace ID key inside metadata map.
   static const String traceIdKey = 'traceId';
+
+  /// Source (app name) key inside metadata map.
+  static const String sourceKey = 'source';
+
+  /// Application identity for cross-app source attribution.
+  ///
+  /// Set by [DiqitLogger] during initialization from [LoggerConfig.appName].
+  /// When non-null, [injectTraceId] automatically includes `meta.source`.
+  static String? sourceAppName;
 
   /// Extracts `traceId` from [payload] if present under `meta.traceId`.
   static String? extractTraceId(dynamic payload) {
@@ -32,10 +45,26 @@ class TraceEnvelope {
     return null;
   }
 
-  /// Injects [traceId] (or active Zone trace) into [payload].
+  /// Extracts `source` from [payload] if present under `meta.source`.
+  static String? extractSource(dynamic payload) {
+    if (payload is Map) {
+      final meta = payload[metaKey];
+      if (meta is Map) {
+        final source = meta[sourceKey];
+        if (source is String && source.isNotEmpty) {
+          return source;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Injects trace ID and optional source into [payload].
   ///
   /// Returns a new [Map] containing
-  /// `{ "meta": { "traceId": traceId, ... }, ... }`.
+  /// `{ "meta": { "traceId": ..., "source": ... }, ... }`.
+  ///
+  /// [sourceAppName] is auto-injected when set.
   static Map<String, dynamic> injectTraceId(
     Map<String, dynamic> payload, {
     TraceId? traceId,
@@ -50,6 +79,9 @@ class TraceEnvelope {
         : <String, dynamic>{};
 
     meta[traceIdKey] = effectiveTrace.toString();
+    if (sourceAppName != null) {
+      meta[sourceKey] = sourceAppName;
+    }
     result[metaKey] = meta;
 
     return result;

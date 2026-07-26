@@ -5,6 +5,9 @@ import 'package:diqit_logging/src/logger/trace_id.dart';
 /// Zone key for storing trace ID stack.
 const Symbol _traceStackKey = #diqit_logging_trace_stack;
 
+/// Zone key for storing structured context metadata.
+const Symbol _contextKey = #diqit_logging_context;
+
 /// Signature for ZoneTrace error handler.
 ///
 /// Called when an uncaught error occurs within a traced zone.
@@ -19,6 +22,9 @@ typedef ZoneTraceErrorHandler = void Function(
 ///
 /// Traces are stored as a stack in Zone values, allowing automatic inheritance
 /// across async boundaries without manual parameter passing.
+///
+/// Structured [context] (entity IDs, operation metadata) can be attached and
+/// inherited alongside trace IDs for independent filtering.
 ///
 /// Uncaught errors within traced zones are intercepted and forwarded to
 /// [onError], which should be configured to log through the application's
@@ -48,33 +54,50 @@ class ZoneTrace {
   /// Useful for building breadcrumb trails or understanding nested operations.
   static List<TraceId> currentTraceList() => List.unmodifiable(_currentStack());
 
+  /// Returns the current structured context from the Zone, or null.
+  ///
+  /// Context carries entity identifiers and operation metadata (e.g.,
+  /// order_id, user_id) separately from the trace identity, enabling
+  /// independent filtering by entity across multiple operations.
+  ///
+  /// When multiple traces are active, returns the context from the
+  /// innermost zone that set one.
+  static Map<String, dynamic>? currentContext() {
+    final ctx = Zone.current[_contextKey];
+    return ctx is Map<String, dynamic>? ? ctx : null;
+  }
+
   /// Runs [fn] in a new Zone with [traceId] added to the trace stack.
   ///
-  /// Any logs emitted within [fn] (or async operations spawned from it) will
-  /// inherit [traceId] automatically.
-  ///
-  /// Errors thrown by [fn] itself propagate to the caller via the returned
-  /// Future. Uncaught errors from microtasks, timers, or stream callbacks
-  /// within the zone are forwarded to [onError] before propagating to the
-  /// parent zone.
+  /// Optional [context] carries structured metadata (entity IDs, etc.) that
+  /// is inherited by logs within this zone. When null, inherits the parent
+  /// zone's context.
   ///
   /// Example:
   /// ```dart
-  /// await ZoneTrace.runTraced(TraceId.auto('payment'), () async {
-  ///   DiqitLogger.info('Processing payment');  // Inherits trace
-  ///   await _chargeCard();                     // Nested calls inherit too
-  /// });
+  /// await ZoneTrace.runTraced(
+  ///   TraceId.auto('payment'),
+  ///   () async {
+  ///     DiqitLogger.info('Processing payment');  // Inherits trace
+  ///     await _chargeCard();
+  ///   },
+  ///   context: {'order_id': 'ORD-001'},
+  /// );
   /// ```
   static Future<T> runTraced<T>(
     TraceId traceId,
-    Future<T> Function() fn,
-  ) async {
+    Future<T> Function() fn, {
+    Map<String, dynamic>? context,
+  }) async {
     final newStack = List<TraceId>.from(_currentStack())..add(traceId);
     final completer = Completer<T>();
 
-    // Launch fn() in a new zone. Errors from fn() flow through the Future
-    // chain so the caller can catch them. Microtask/timer/stream errors
-    // within the zone are caught by runZonedGuarded's onError.
+    final zoneValues = <Symbol, Object>{_traceStackKey: newStack};
+    final newContext = context ?? ZoneTrace.currentContext();
+    if (newContext != null) {
+      zoneValues[_contextKey] = newContext;
+    }
+
     runZonedGuarded(
       () {
         fn().then(
@@ -88,7 +111,7 @@ class ZoneTrace {
       (Object error, StackTrace stackTrace) {
         _handleError(newStack.last, error, stackTrace);
       },
-      zoneValues: {_traceStackKey: newStack},
+      zoneValues: zoneValues,
     );
 
     return completer.future;
@@ -98,19 +121,31 @@ class ZoneTrace {
   ///
   /// Example:
   /// ```dart
-  /// ZoneTrace.runTracedSync(TraceId.manual('init', 1), () {
-  ///   DiqitLogger.debug('Initialization started');
-  ///   _loadConfig();
-  /// });
+  /// ZoneTrace.runTracedSync(
+  ///   TraceId.manual('init', 1),
+  ///   () {
+  ///     DiqitLogger.debug('Initialization started');
+  ///     _loadConfig();
+  ///   },
+  ///   context: {'boot_phase': 'init'},
+  /// );
   /// ```
   static T runTracedSync<T>(
     TraceId traceId,
-    T Function() fn,
-  ) {
+    T Function() fn, {
+    Map<String, dynamic>? context,
+  }) {
     final newStack = List<TraceId>.from(_currentStack())..add(traceId);
+
+    final zoneValues = <Symbol, Object>{_traceStackKey: newStack};
+    final newContext = context ?? ZoneTrace.currentContext();
+    if (newContext != null) {
+      zoneValues[_contextKey] = newContext;
+    }
+
     return runZoned(
       fn,
-      zoneValues: {_traceStackKey: newStack},
+      zoneValues: zoneValues,
       zoneSpecification: ZoneSpecification(
         handleUncaughtError: (self, parent, zone, error, stackTrace) {
           _handleZoneError(zone, error, stackTrace);

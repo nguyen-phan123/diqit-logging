@@ -158,8 +158,9 @@ void main() {
 
     test('real-world scenario: KDS bump flow', () async {
       // Simulate KDS bump order flow from PRD user story
+      // Uses context for entity ID, keeping trace ID pure for operation filtering
       await DiqitLogger.runTraced(
-        TraceId.manual('bump', 001).withSuffix('ORD-001'),
+        TraceId.manual('bump', 001),
         () async {
           DiqitLogger.i('Bump initiated', tag: LogTag.custom('kds.bump'));
 
@@ -174,6 +175,7 @@ void main() {
           // Simulate UI update
           DiqitLogger.i('UI: Order removed from grid', tag: LogTag.custom('ui'));
         },
+        context: {'order_id': 'ORD-001'},
       );
 
       final logs = DiqitLogger.getLogHistory();
@@ -189,7 +191,8 @@ void main() {
 
       expect(bumpLines.length >= 4, true);
       for (final line in bumpLines) {
-        expect(line.contains('[#bump-1.ORD-001]'), true);
+        expect(line.contains('[#bump-1]'), true);
+        expect(line.contains('"order_id":"ORD-001"'), true);
       }
     });
 
@@ -220,6 +223,123 @@ void main() {
       expect(log1Lines.any((l) => l.contains('[$traceId]')), true);
       expect(log2Lines.any((l) => l.contains('[$traceId]')), true);
       expect(log3Lines.any((l) => l.contains('[$traceId]')), true);
+    });
+
+    test('context filter: entity-based query independent of trace', () async {
+      // Operation A: bump order ORD-001
+      await DiqitLogger.runTraced(
+        TraceId.manual('bump', 1),
+        () async {
+          DiqitLogger.i('Bump order', tag: LogTag.kds);
+        },
+        context: {'order_id': 'ORD-001'},
+      );
+
+      // Operation B: cancel order ORD-001 (different trace, same entity)
+      await DiqitLogger.runTraced(
+        TraceId.manual('cancel', 2),
+        () async {
+          DiqitLogger.i('Cancel order', tag: LogTag.order);
+        },
+        context: {'order_id': 'ORD-001'},
+      );
+
+      // Operation C: bump different order ORD-002
+      await DiqitLogger.runTraced(
+        TraceId.manual('bump', 3),
+        () async {
+          DiqitLogger.i('Bump another order', tag: LogTag.kds);
+        },
+        context: {'order_id': 'ORD-002'},
+      );
+
+      // Filter by entity: should find both operation A and B, but not C
+      final ord001Logs = DiqitLogger.getLogHistoryByContext(
+        'order_id',
+        'ORD-001',
+      );
+      final ord001Lines = ord001Logs.expand((e) => e.lines).toList();
+      expect(ord001Lines.any((l) => l.contains('Bump order')), true);
+      expect(ord001Lines.any((l) => l.contains('Cancel order')), true);
+      expect(ord001Lines.any((l) => l.contains('Bump another order')), false);
+
+      // Filter by operation: should find both bump operations
+      final bumpLogs = DiqitLogger.getLogHistoryForTrace('#bump-1');
+      final bumpLines1 = bumpLogs.expand((e) => e.lines).toList();
+      expect(
+        bumpLines1.any((l) => l.contains('Bump order')),
+        true,
+      );
+    });
+  });
+
+  group('Hierarchical Logger', () {
+    setUp(() async {
+      await DiqitLogger.initialize(LoggerConfig.development());
+    });
+
+    test('createChild produces namespace path in output', () {
+      final kdsLogger = DiqitLogger.createChild('kds');
+      kdsLogger.i('hierarchical_child_path_KDS_started');
+
+      final logs = DiqitLogger.getLogHistory();
+      final logLines = logs.expand((e) => e.lines).toList();
+      final kdsLine = logLines.firstWhere(
+        (l) => l.contains('hierarchical_child_path_KDS_started'),
+        orElse: () => '',
+      );
+      expect(kdsLine, contains('[kds]'));
+      expect(kdsLine, contains('hierarchical_child_path_KDS_started'));
+    });
+
+    test('nested createChild produces slash-delimited path', () {
+      final kdsLogger = DiqitLogger.createChild('kds');
+      final gridLogger = kdsLogger.createChild('order_grid');
+      gridLogger.d('hierarchical_nested_path_test');
+
+      final logs = DiqitLogger.getLogHistory();
+      final logLines = logs.expand((e) => e.lines).toList();
+      final bumpLine = logLines.firstWhere(
+        (l) => l.contains('hierarchical_nested_path_test'),
+        orElse: () => '',
+      );
+      expect(bumpLine, contains('[kds/order_grid]'));
+    });
+
+    test('root logger without createChild has no path', () {
+      DiqitLogger.i('root_log_no_path_unique_msg');
+
+      final logs = DiqitLogger.getLogHistory();
+      final logLines = logs.expand((e) => e.lines).toList();
+      final rootLine = logLines.firstWhere(
+        (l) => l.contains('root_log_no_path_unique_msg'),
+        orElse: () => '',
+      );
+
+      expect(rootLine.contains('[kds/'), false);
+      expect(rootLine.contains('root_log_no_path_unique_msg'), true);
+    });
+
+    test('createChild with trace and context', () async {
+      final kdsLogger = DiqitLogger.createChild('kds');
+      await DiqitLogger.runTraced(
+        TraceId.manual('bump', 1),
+        () async {
+          kdsLogger.i('child_path_trace_ctx_test', tag: LogTag.custom('kds.bump'));
+        },
+        context: {'order_id': 'ORD-001'},
+      );
+
+      final logs = DiqitLogger.getLogHistory();
+      final logLines = logs.expand((e) => e.lines).toList();
+      final bumpLine = logLines.firstWhere(
+        (l) => l.contains('child_path_trace_ctx_test'),
+        orElse: () => '',
+      );
+      expect(bumpLine, contains('[kds.bump]'));
+      expect(bumpLine, contains('[kds]'));
+      expect(bumpLine, contains('[#bump-1]'));
+      expect(bumpLine, contains('"order_id":"ORD-001"'));
     });
   });
 }

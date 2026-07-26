@@ -1,5 +1,4 @@
 import 'package:diqit_logging/src/logger/diqit_log_message.dart';
-import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:logger/logger.dart';
 
 class DiqitLogPrinter extends LogPrinter {
@@ -33,9 +32,26 @@ class DiqitLogPrinter extends LogPrinter {
     // Use toString() which includes [traceId] prefix and formatted data.
     final content = msg.toString();
 
-    if (msg.tag == LogTag.none || msg.tag.label.isEmpty) {
-      return '$prefix$content';
+    var decorated = prefix;
+
+    if (msg.source != null && msg.source!.isNotEmpty) {
+      decorated += ' [${msg.source}]';
     }
-    return '$prefix [${msg.tag.label}] -> $content';
+
+    if (msg.tag.label.isNotEmpty) {
+      decorated += ' [${msg.tag.label}]';
+    }
+
+    if (msg.path != null && msg.path!.isNotEmpty) {
+      decorated += ' [${msg.path}]';
+    }
+
+    final hasTagOrPath = msg.tag.label.isNotEmpty ||
+        (msg.path != null && msg.path!.isNotEmpty);
+    if (hasTagOrPath) {
+      decorated += ' -> ';
+    }
+
+    return '$decorated$content';
   }
 }
