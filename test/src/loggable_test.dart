@@ -51,12 +51,11 @@ void main() {
       final logOutput = lastLog.lines.join('\n');
 
       expect(logOutput, contains('Order created'));
-      expect(logOutput, contains('Data:'));
-      expect(logOutput, contains('id'));
-      expect(logOutput, contains('ORD-123'));
-      expect(logOutput, contains('total'));
+      expect(logOutput, contains('"id"'));
+      expect(logOutput, contains('"ORD-123"'));
+      expect(logOutput, contains('"total"'));
       expect(logOutput, contains(r'$45.99'));
-      expect(logOutput, contains('item_count'));
+      expect(logOutput, contains('"item_count"'));
       expect(logOutput, contains('3'));
     });
 
@@ -90,7 +89,9 @@ void main() {
       expect(logOutput, isNot(contains('last_order')));
     });
 
-    test('falls back to toString for non-Loggable objects', () {
+    test('falls back to JSON for non-Loggable objects without converter', () {
+      DiqitLogger.typeConverterRegistry.clear();
+
       final plainObject = DateTime(2024, 1, 1);
 
       DiqitLogger.i('Plain object', data: plainObject);
@@ -99,8 +100,7 @@ void main() {
       final logOutput = lastLog.lines.join('\n');
 
       expect(logOutput, contains('Plain object'));
-      expect(logOutput, contains('Data:'));
-      // Should contain some representation of the DateTime
+      expect(logOutput, contains('"data"'));
       expect(logOutput, isNotEmpty);
     });
 
@@ -113,7 +113,7 @@ void main() {
       final logOutput = lastLog.lines.join('\n');
 
       expect(logOutput, contains('Empty entity'));
-      expect(logOutput, contains('Data:'));
+      expect(logOutput, contains('{}'));
     });
 
     test('works with all log levels', () {

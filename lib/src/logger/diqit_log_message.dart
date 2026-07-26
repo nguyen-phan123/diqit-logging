@@ -24,7 +24,6 @@ class DLogMessage {
   String toString() {
     final buffer = StringBuffer();
 
-    // Add trace ID prefix if present
     if (traceId != null) {
       buffer.write('[$traceId] ');
     }
@@ -32,7 +31,7 @@ class DLogMessage {
     buffer.write(message);
 
     if (data != null) {
-      buffer.write('\n${_formatData(data, typeConverterRegistry)}');
+      buffer.write(_formatData(data, typeConverterRegistry));
     }
 
     return buffer.toString();
@@ -48,7 +47,7 @@ class DLogMessage {
         final loggableMap = data.toLoggableMap();
         return _formatLoggableMap(loggableMap);
       } catch (e) {
-        return 'Data: [Loggable formatting error: $e]';
+        return ' [Loggable formatting error: $e]';
       }
     }
 
@@ -56,59 +55,64 @@ class DLogMessage {
     if (registry != null && data is Object) {
       final converted = registry.convert(data);
       if (converted != null) {
-        return 'Data:\n  $converted';
+        return ' "$converted"';
       }
     }
 
-    // 3. Fallback to JSON encoding (legacy behavior)
+    // 3. Fallback to JSON encoding
     try {
       const encoder = JsonEncoder.withIndent('  ');
       final jsonString = encoder.convert(
         data is String ? data : _toJsonSafe(data),
       );
-      return 'Data:\n{\n  "data": $jsonString\n}';
+      return ' {"data": $jsonString}';
     } catch (_) {
-      return 'Data:\n{\n  "data": $data\n}';
+      return ' {"data": "$data"}';
     }
   }
 
   static String _formatLoggableMap(Map<String, dynamic> map) {
-    if (map.isEmpty) {
-      return 'Data: {}';
-    }
+    if (map.isEmpty) return ' {}';
 
-    final buffer = StringBuffer('Data:\n');
-    _appendMapEntries(buffer, map.entries.toList(), indent: 2);
+    final buffer = StringBuffer(' {\n');
+    _writeJsonEntries(buffer, map, 2);
+    buffer.write('}');
     return buffer.toString();
   }
 
-  /// Recursively format a value from a Loggable map
-  static String _formatLoggableValue(dynamic value, {int indent = 0}) {
+  /// Recursively format a value from a Loggable map as JSON
+  static String _formatLoggableValue(dynamic value, int indent) {
     if (value is Loggable) {
       final nestedMap = value.toLoggableMap();
       if (nestedMap.isEmpty) return '{}';
 
       final buffer = StringBuffer('{\n');
-      _appendMapEntries(buffer, nestedMap.entries.toList(),
-        indent: indent + 2);
+      _writeJsonEntries(buffer, nestedMap, indent + 2);
       buffer.write('${' ' * indent}}');
       return buffer.toString();
+    }
+
+    if (value is String) {
+      return '"$value"';
     }
 
     return value.toString();
   }
 
-  /// Helper to format map entries with proper indentation
-  static void _appendMapEntries(
+  /// Writes JSON object entries with proper indentation and commas
+  static void _writeJsonEntries(
     StringBuffer buffer,
-    List<MapEntry<String, dynamic>> entries, {
-    required int indent,
-  }) {
+    Map<String, dynamic> map,
+    int indent,
+  ) {
     final indentStr = ' ' * indent;
+    final entries = map.entries.toList();
 
-    for (final entry in entries) {
-      final formattedValue = _formatLoggableValue(entry.value, indent: indent);
-      buffer.write('$indentStr${entry.key}: $formattedValue\n');
+    for (var i = 0; i < entries.length; i++) {
+      final entry = entries[i];
+      final comma = i < entries.length - 1 ? ',' : '';
+      final formattedValue = _formatLoggableValue(entry.value, indent);
+      buffer.write('$indentStr"${entry.key}": $formattedValue$comma\n');
     }
   }
 
@@ -122,7 +126,6 @@ class DLogMessage {
     if (value is Iterable) {
       return value.map(_toJsonSafe).toList();
     }
-    // Try toJson() if available (e.g. entities/DTOs)
     try {
       // ignore: avoid_dynamic_calls
       return _toJsonSafe((value as dynamic).toJson());
