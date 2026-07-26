@@ -1,15 +1,15 @@
-# 0003: Structured Logging and Namespace Hierarchy
+# 0003: Structured Object Logging
 
 - **Status**: Proposed
 - **Date**: 2026-07-26
 - **Authors**: Platform Team
-- **Inspired by**: [team_logger](https://github.com/vi-k/team_logger) architecture
+- **Inspired by**: [team_logger](https://github.com/vi-k/team_logger) Loggable pattern
 
 ## Context
 
-DiqitLogger currently provides a **singleton-based logging API** with good primitives (trace zones, tag filtering, dual printers). However, three gaps emerge in a **monorepo with 5 Flutter apps** (KDS, OT Master, OT Client, Dispatch, Customer Display) sharing cross-device trace flows:
+DiqitLogger currently provides a **singleton-based logging API** with good primitives (trace zones, tag filtering, dual printers). However, one critical gap emerges when logging domain entities:
 
-### 1. **Complex objects log poorly**
+### Complex objects log poorly
 
 ```dart
 // Current: objects dump as toString() or require manual formatting
@@ -17,78 +17,66 @@ final order = OrderEntity(uuid: 'abc-123', total: 45.50, items: [...]);
 DiqitLogger.i('Order created: $order');
 // Output: Order created: Instance of 'OrderEntity'
 
-// Workaround: manual serialization
-DiqitLogger.i('Order created: uuid=${order.uuid}, total=${order.total}');
-// Verbose, inconsistent across codebase
+// Workaround: manual serialization in every call site
+DiqitLogger.i('Order created: uuid=${order.uuid}, total=${order.total}, items=${order.orderDetails.length}');
+// Verbose, inconsistent across codebase, error-prone
 ```
 
-**Problem:** No standard way to log domain entities (OrderEntity, KdsBatchesEntity, SocketEnvelope) with readable structure.
+**Problem:** No standard protocol for logging domain entities (OrderEntity, KdsBatchesEntity, SocketEnvelope, CartModel) with readable structure. Teams resort to:
+1. Opaque `toString()` output (useless)
+2. Manual string interpolation (verbose, inconsistent)
+3. Custom `toDebugString()` methods (scattered, no convention)
 
-### 2. **Flat namespace prevents filtering by app/feature**
-
-```dart
-// All logs share same DiqitLogger singleton
-DiqitLogger.i('Processing batch', tag: LogTag.kds);  // KDS app
-DiqitLogger.i('Creating order', tag: LogTag.order);  // OT app
-DiqitLogger.i('Dispatching driver', tag: LogTag.dispatch); // Dispatch app
-```
-
-**Problem:** 
-- Cannot filter logs by **app hierarchy** (e.g., "show all OT logs" vs "show only OT/order/payment logs")
-- LogTag system is flat — no parent/child relationship
-- In production, logs from 5 apps on same device mix together without clear separation
-
-### 3. **Output format is fixed**
-
-```dart
-// Development: want verbose, colorful logs with stack traces
-final devConfig = LoggerConfig.development();
-
-// Production: want compact, JSON-ready logs for aggregation
-final prodConfig = LoggerConfig.production();
-```
-
-**Problem:** 
-- DShorthandPrinter and DPrettyPrinter are hardcoded
-- Cannot customize layout (e.g., add sequence numbers, reorder fields)
-- Cannot switch themes at runtime (e.g., "activate payment logs, dim everything else")
+This compounds in a **monorepo with 5 Flutter apps** where entities are logged hundreds of times across features.
 
 ## Decision
 
-We adopt **6 features** inspired by `team_logger`, implemented as **additive layers** over DiqitLogger singleton to preserve backward compatibility:
+We adopt **2 features** from `team_logger` to solve structured object logging:
 
-### Feature Set (by priority)
+### 1. Loggable Mixin
+A protocol for domain entities to define their structured log representation.
 
-| Priority | Feature | Status | Effort |
-|----------|---------|--------|--------|
-| **P0** | Loggable Mixin | Proposed | Low (1-2 days) |
-| **P1** | Namespace Loggers | Proposed | Medium (2-3 days) |
-| **P1** | Custom Themes/Layouts | Proposed | Medium (3-4 days) |
-| **P2** | Type Converters | Proposed | Low (1 day) |
-| **P2** | BBCode Formatting | Proposed | Medium (2-3 days) |
-| **P3** | Active/Inactive Modes | Proposed | Low (1 day) |
+### 2. Type Converter Registry
+A fallback mechanism for formatting third-party types that cannot implement `Loggable`.
+
+**Not adopting** (evaluated but deemed over-engineered for current needs):
+- ❌ **Namespace loggers** — LogTag already provides domain filtering; hierarchical paths add complexity without clear benefit
+- ❌ **Custom themes** — DShorthandPrinter/DPrettyPrinter work fine; theme abstraction premature until production format breaks
+- ❌ **BBCode formatting** — ANSI codes exist; inline markup is visual sugar, not functional requirement
+- ❌ **Active/Inactive modes** — Visual polish without measurable value
 
 ---
 
 ## Architecture Design
 
-### 1. Loggable Mixin (P0)
+### 1. Loggable Mixin
 
-**Goal:** Standard protocol for logging complex objects.
+**Goal:** Standard protocol for structured object logging.
 
 ```dart
 // lib/src/logger/loggable.dart
+/// {@template loggable}
+/// Protocol for objects that can format themselves for logging.
+/// 
+/// Implement this mixin on domain entities to provide structured
+/// key-value representation instead of opaque toString() output.
+/// {@endtemplate}
 mixin Loggable {
-  /// Convert object to loggable representation.
+  /// Returns a map of loggable key-value pairs.
   /// Keys should be human-readable field names.
+  /// Values can be primitives, strings, or nested Loggable objects.
   Map<String, dynamic> toLoggableMap();
 }
+```
 
-// Usage in domain layer
+**Usage in domain layer:**
+```dart
+// lib/domain/entities/order_entity.dart
 class OrderEntity with Loggable {
   final String uuid;
   final double total;
   final List<OrderDetailEntity> orderDetails;
+  final OrderStatus status;
 
   @override
   Map<String, dynamic> toLoggableMap() => {
@@ -99,142 +87,25 @@ class OrderEntity with Loggable {
   };
 }
 
-// DiqitLogger auto-formats Loggable objects
+// Usage
 DiqitLogger.i('Order created', data: orderEntity);
 // Output: [10:30:45] ℹ [OTM] [ORDER] Order created
 //         Data: {uuid: abc-123, total: $45.50, items_count: 3, status: pending}
 ```
 
-**Implementation:**
-- Add optional `data` parameter to all log methods
-- Printer detects `Loggable` mixin via `is Loggable`
-- Falls back to `.toString()` for non-Loggable objects
-
-**Breaking:** None (additive)
-
----
-
-### 2. Namespace Loggers (P1)
-
-**Goal:** Hierarchical logger organization without breaking singleton pattern.
-
-```dart
-// lib/src/logger/namespaced_logger.dart
-class NamespacedLogger {
-  final String path;
-  final DiqitLogger _backend;
-  
-  NamespacedLogger(this.path, [DiqitLogger? backend])
-      : _backend = backend ?? DiqitLogger.instance;
-  
-  /// Create child logger: parent/child
-  NamespacedLogger child(String name) {
-    final separator = path.isEmpty ? '' : '/';
-    return NamespacedLogger('$path$separator$name', _backend);
-  }
-  
-  /// Log methods delegate to backend with path prefix
-  void i(String msg, {Object? data, LogTag tag = LogTag.none}) {
-    final prefixedMsg = path.isEmpty ? msg : '[$path] $msg';
-    _backend.i(prefixedMsg, data: data, tag: tag);
-  }
-  
-  // ... d(), w(), e(), etc.
-}
-
-// Usage in apps
-// lib/main.dart (OT Master app)
-final otmLog = NamespacedLogger('OTM');
-final orderLog = otmLog.child('order');
-final paymentLog = orderLog.child('payment');
-
-paymentLog.i('Charge succeeded', data: chargeResult);
-// Output: [10:30:45] ℹ [OTM] [PAYMENT] [OTM/order/payment] Charge succeeded
-```
-
-**Design choices:**
-- **Wrapper pattern** — NamespacedLogger wraps singleton, doesn't replace it
-- **Opt-in** — existing code using `DiqitLogger.i()` continues to work
-- **Path in message** — namespace appears in log content, not as separate metadata (simplifies grep/filtering)
-
-**Breaking:** None (opt-in wrapper)
+**Implementation details:**
+- Add optional `Object? data` parameter to all log methods (`i`, `d`, `w`, `e`, `ft`, etc.)
+- Printer detects `Loggable` via `data is Loggable` check
+- Format as indented key-value pairs (console-friendly)
+- Recursively format nested Loggable objects
+- Falls back to TypeConverter if not Loggable (see below)
+- Last resort: `data.toString()`
 
 ---
 
-### 3. Custom Themes/Layouts (P1)
+### 2. Type Converter Registry
 
-**Goal:** Pluggable formatters for dev vs prod, with runtime theme switching.
-
-```dart
-// lib/src/logger/theme.dart
-abstract class LogTheme {
-  String formatTimestamp(DateTime time);
-  String formatLevel(Level level);
-  String formatTrace(TraceId? trace);
-  String formatTag(LogTag tag);
-  String formatMessage(String msg);
-  String formatData(Object? data);
-}
-
-// lib/src/logger/themes/dev_theme.dart
-class DevTheme implements LogTheme {
-  @override
-  String formatTimestamp(DateTime time) {
-    final h = time.hour.toString().padLeft(2, '0');
-    final m = time.minute.toString().padLeft(2, '0');
-    final s = time.second.toString().padLeft(2, '0');
-    final ms = time.millisecond.toString().padLeft(3, '0');
-    return '[$h:$m:$s.$ms]';
-  }
-  
-  @override
-  String formatLevel(Level level) {
-    // ANSI colors for dev console
-    const colors = {
-      Level.trace: '\x1B[90m🔍',    // dim gray
-      Level.debug: '\x1B[36mℹ',     // cyan
-      Level.info: '\x1B[32m✓',      // green
-      Level.warning: '\x1B[33m⚠',   // yellow
-      Level.error: '\x1B[31m✗',     // red
-      Level.fatal: '\x1B[35m💀',    // magenta
-    };
-    return '${colors[level] ?? 'ℹ'}\x1B[0m';
-  }
-  
-  // ... other formatters with colors, emojis
-}
-
-// lib/src/logger/themes/prod_theme.dart
-class ProdTheme implements LogTheme {
-  @override
-  String formatTimestamp(DateTime time) => time.toIso8601String();
-  
-  @override
-  String formatLevel(Level level) => level.name.toUpperCase();
-  
-  // JSON-friendly, no colors, compact
-}
-
-// Usage
-final config = LoggerConfig(
-  theme: DevTheme(),  // or ProdTheme()
-  enableConsoleLogging: true,
-);
-await DiqitLogger.initialize(config);
-```
-
-**Design choices:**
-- **Strategy pattern** — theme is pluggable via LoggerConfig
-- **Backward compat** — if no theme specified, use current DShorthandPrinter logic as default
-- **Runtime switching** — `DiqitLogger.updateConfig(config.copyWith(theme: ProdTheme()))` changes theme on the fly
-
-**Breaking:** Potential if we refactor DShorthandPrinter/DPrettyPrinter to use theme internally
-
----
-
-### 4. Type Converters (P2)
-
-**Goal:** Format third-party classes that can't implement `Loggable`.
+**Goal:** Format third-party classes that cannot implement `Loggable`.
 
 ```dart
 // lib/src/logger/type_converter.dart
@@ -243,179 +114,152 @@ typedef TypeConverter<T> = String Function(T value);
 class TypeConverterRegistry {
   final Map<Type, TypeConverter> _converters = {};
   
+  /// Register a converter for type [T].
   void register<T>(TypeConverter<T> converter) {
     _converters[T] = converter;
   }
   
+  /// Try to convert [value] using registered converter.
+  /// Returns null if no converter found for value's type.
   String? convert(Object value) {
     final converter = _converters[value.runtimeType];
-    return converter?.call(value);
+    if (converter != null) {
+      return converter(value);
+    }
+    return null;
   }
 }
+```
 
-// Usage
+**Usage:**
+```dart
+// During logger initialization
+await DiqitLogger.initialize(config);
+
+// Register common types
 DiqitLogger.registerConverter<DateTime>((dt) => dt.toIso8601String());
 DiqitLogger.registerConverter<Duration>((d) => '${d.inSeconds}s');
+DiqitLogger.registerConverter<Uri>((uri) => uri.toString());
 
-DiqitLogger.i('Event scheduled', data: DateTime.now());
-// Auto-converts: Event scheduled
-//                Data: 2026-07-26T10:30:45.123Z
+// Later in code
+DiqitLogger.i('Event scheduled at', data: DateTime.now());
+// Output: Event scheduled at
+//         Data: 2026-07-26T10:30:45.123Z
+
+DiqitLogger.d('Request timeout', data: Duration(seconds: 30));
+// Output: Request timeout
+//         Data: 30s
 ```
 
-**Implementation:**
-- Global registry in DiqitLogger singleton
-- Printer checks converters before falling back to `.toString()`
-- Lookup order: 1) Loggable, 2) TypeConverter, 3) toString()
-
-**Breaking:** None (additive)
+**Lookup order for `data` parameter:**
+1. **Loggable check** → `data.toLoggableMap()` if implements mixin
+2. **TypeConverter check** → registered converter if exists
+3. **Fallback** → `data.toString()`
 
 ---
 
-### 5. BBCode Formatting (P2)
+## Implementation Plan
 
-**Goal:** Inline text styling for console logs.
+### Single Phase (2 days)
 
-```dart
-DiqitLogger.i('[success]Payment succeeded[/success] for order [b]#12345[/b]');
-// Console output: Payment succeeded (green) for order #12345 (bold)
-```
+**Ticket 1.1: Loggable Mixin Protocol** (4 hours)
+- Create `lib/src/logger/loggable.dart` with mixin definition
+- Update exports in `lib/diqit_logging.dart`
+- Add dartdoc with usage examples
 
-**Supported tags:**
-```dart
-[b]bold[/b]           → ANSI bold
-[i]italic[/i]         → ANSI italic
-[u]underline[/u]      → ANSI underline
-[success]...[/success] → green
-[error]...[/error]     → red
-[warning]...[/warning] → yellow
-[dim]...[/dim]         → gray
-```
+**Ticket 1.2: Type Converter Registry** (4 hours)
+- Create `lib/src/logger/type_converter.dart`
+- Add `TypeConverterRegistry` class to `DiqitLogger` singleton
+- Expose `DiqitLogger.registerConverter<T>()` static method
+- Register DateTime/Duration/Uri by default in `initialize()`
 
-**Implementation:**
-- BBCode parser in `lib/src/logger/bbcode_parser.dart`
-- Theme system provides ANSI mapping
-- Parse message string before output, replace tags with ANSI codes
+**Ticket 1.3: Data Parameter & Printer Integration** (1 day)
+- Add `Object? data` parameter to all log methods
+- Update `DiqitLogPrinter._formatMessage()` to detect and format data:
+  ```dart
+  String _formatDataIfPresent(Object? data) {
+    if (data == null) return '';
+    
+    // 1. Try Loggable
+    if (data is Loggable) {
+      final map = data.toLoggableMap();
+      return _formatMap(map, indent: 2);
+    }
+    
+    // 2. Try TypeConverter
+    final converted = _converterRegistry.convert(data);
+    if (converted != null) return '\n  Data: $converted';
+    
+    // 3. Fallback
+    return '\n  Data: ${data.toString()}';
+  }
+  ```
+- Handle nested Loggable objects recursively
+- Add tests for all 3 lookup paths
 
-**Design choice:**
-- **Opt-in** — only parse if message contains `[` character (performance)
-- **Prod-safe** — ProdTheme strips BBCode tags instead of converting to ANSI
+**Ticket 1.4: Documentation** (2 hours)
+- Update README.md with Loggable usage examples
+- Add migration guide for existing manual formatting patterns
+- Document best practices (when to use Loggable vs TypeConverter)
 
-**Breaking:** None (additive)
-
----
-
-### 6. Active/Inactive Modes (P3)
-
-**Goal:** Visual separation between "current focus" and "background noise".
-
-```dart
-// In multi-logger scenario
-final orderLog = otmLog.child('order');
-final paymentLog = otmLog.child('payment');
-
-// Debugging payment flow specifically
-paymentLog.activate();   // Switch to high-contrast theme
-orderLog.deactivate();   // Switch to low-contrast theme
-
-// Logs from paymentLog: bright colors, full detail
-// Logs from orderLog: dim gray, minimal detail
-```
-
-**Implementation:**
-- Each NamespacedLogger tracks `isActive` state
-- Theme has 2 variants: `activeFormat()` and `inactiveFormat()`
-- Printer selects variant based on logger state
-
-**Breaking:** None (additive, requires namespace loggers)
-
----
-
-## Implementation Phases
-
-### Phase 1: Foundation (Week 1)
-- **Ticket 1.1:** Loggable mixin + printer integration (P0)
-- **Ticket 1.2:** Add `data` parameter to all log methods
-
-**Deliverable:** Can log domain entities with structured output
-
----
-
-### Phase 2: Organization (Week 2)
-- **Ticket 2.1:** NamespacedLogger wrapper (P1)
-- **Ticket 2.2:** LogTheme interface + DevTheme/ProdTheme (P1)
-- **Ticket 2.3:** Refactor printers to use theme system
-
-**Deliverable:** Can organize logs by hierarchy, switch themes at runtime
-
----
-
-### Phase 3: Enhancement (Week 3)
-- **Ticket 3.1:** TypeConverterRegistry (P2)
-- **Ticket 3.2:** BBCode parser + ANSI mapping (P2)
-
-**Deliverable:** Can format third-party types, use inline styling
-
----
-
-### Phase 4: Polish (Week 4)
-- **Ticket 4.1:** Active/inactive mode for NamespacedLogger (P3)
-- **Ticket 4.2:** Documentation + migration guide
-
-**Deliverable:** Full feature parity with team_logger patterns
+**Total effort:** 2 days
 
 ---
 
 ## Consequences
 
 ### Positive
-- **Structured logging** — domain entities log readably without manual formatting
-- **Hierarchical organization** — filter logs by app/feature hierarchy in monorepo
-- **Flexible formatting** — dev vs prod themes, runtime switching
-- **Backward compatible** — all features are opt-in wrappers over singleton
-- **Extensible** — type converters and BBCode are open for customization
+- **Immediate value** — log complex objects readably without manual formatting at every call site
+- **Consistent convention** — one way to format entities across monorepo
+- **Low risk** — additive API (`data` parameter optional), zero breaking changes
+- **Pragmatic scope** — solves real problem (unreadable objects), doesn't add speculative features
+- **Extensible** — TypeConverter registry allows formatting any type without modifying its source
 
 ### Negative
-- **Increased complexity** — 6 new concepts vs current simple singleton API
-- **Migration effort** — existing code continues to work, but won't get new features until migrated to NamespacedLogger
-- **Performance overhead** — BBCode parsing, theme formatting add microseconds per log (acceptable for dev, should profile for prod)
+- **Adoption effort** — requires adding `Loggable` mixin to ~20-30 domain entities across apps
+- **Boilerplate** — every entity needs `toLoggableMap()` implementation (mitigated: one-time, localized in entity files)
 
 ### Neutral
-- **Not a full distributed tracing solution** — this ADR covers *local* log formatting and organization. Cross-device trace correlation (via TraceEnvelope) is already handled by ADR 0001/0002.
-- **team_logger not adopted directly** — we cherry-pick patterns, not the library itself, to maintain control over singleton architecture and monorepo integration.
+- **Deferred features** — namespace hierarchy, custom themes, BBCode remain unimplemented. Re-evaluate if:
+  - LogTag filtering proves insufficient (namespace hierarchy)
+  - Production needs JSON format for log aggregator (custom themes)
+  - Visual emphasis becomes a repeated pain point (BBCode)
 
 ---
 
 ## Alternatives Considered
 
 ### Alternative 1: Adopt team_logger directly
-**Pros:** Battle-tested, full feature set  
+**Pros:** Battle-tested, full feature set (namespace, themes, BBCode)  
 **Cons:** 
 - Requires replacing DiqitLogger singleton (breaking change)
 - Loses existing TraceEnvelope/Socket.IO integration
 - External dependency vs in-house control
+- Over-engineered for current need
 
-**Verdict:** Rejected. Too disruptive for incremental value gain.
-
----
-
-### Alternative 2: Keep current system, add only Loggable
-**Pros:** Minimal change, quick win  
-**Cons:** 
-- Doesn't solve namespace problem (monorepo log filtering)
-- Doesn't solve theme problem (dev vs prod format)
-
-**Verdict:** Rejected. Solves 1/3 of the problem.
+**Verdict:** Rejected. Too disruptive for incremental value.
 
 ---
 
-### Alternative 3: Use OpenTelemetry SDK
-**Pros:** Industry standard, distributed tracing, APM integration  
+### Alternative 2: JSON serialization (toJson)
+**Pros:** Standard Dart pattern, code gen via json_serializable  
 **Cons:** 
-- Heavy dependency (~500KB+ in Flutter)
-- Overkill for local logging use case
-- Requires external collector/backend
+- toJson is for **wire format**, not **human-readable logs**
+- Would produce JSON strings in console (hard to read)
+- Couples logging to serialization concerns
 
-**Verdict:** Rejected for now. Revisit when we need APM integration (separate ADR).
+**Verdict:** Rejected. Loggable is logging-specific protocol.
+
+---
+
+### Alternative 3: Keep manual formatting
+**Pros:** Zero new code  
+**Cons:** 
+- Inconsistent across codebase
+- Verbose, error-prone
+- No enforcement of structured format
+
+**Verdict:** Rejected. Problem is real, solution is low-cost.
 
 ---
 
@@ -426,6 +270,5 @@ orderLog.deactivate();   // Switch to low-contrast theme
 ---
 
 ## References
-- [team_logger GitHub](https://github.com/vi-k/team_logger) — Inspiration source
-- [OpenTelemetry Dart](https://opentelemetry.io/docs/languages/dart/) — Considered alternative
-- [Dart Zone API](https://api.dart.dev/stable/dart-async/Zone-class.html) — Underlying trace propagation mechanism
+- [team_logger GitHub](https://github.com/vi-k/team_logger) — Inspiration for Loggable pattern
+- [Dart Mixins](https://dart.dev/language/mixins) — Underlying protocol mechanism

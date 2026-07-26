@@ -32,14 +32,12 @@ _Avoid_: Log category, Event module, Channel
 An in-memory rolling buffer of formatted log events maintained for real-time inspection and on-device debugging. Supports filtering by trace ID via `getLogHistoryForTrace`.
 _Avoid_: Log cache, Memory store, Event queue
 
-**Loggable** (Proposed - ADR 0003):
+**Loggable**:
 A mixin protocol enabling domain entities to define their structured log representation via `toLoggableMap()`. DiqitLogger automatically detects and formats objects implementing this protocol, producing readable key-value output instead of opaque `toString()` results.
 _Avoid_: Serializable, LoggableObject, DebugPrintable
+_Status_: Approved in ADR-0003, pending implementation
 
-**NamespacedLogger** (Proposed - ADR 0003):
-A hierarchical logger wrapper organizing logs by path (e.g., `OTM/order/payment`) without replacing the DiqitLogger singleton. Creates parent-child relationships via `child(name)` and prefixes all log messages with the full path for filtering in monorepo environments.
-_Avoid_: Scoped logger, Child logger, Logger hierarchy
-
-**LogTheme** (Proposed - ADR 0003):
-A pluggable formatter strategy defining how timestamps, levels, traces, tags, and messages render in log output. Enables runtime switching between development themes (colorful, verbose) and production themes (compact, JSON-ready) via `LoggerConfig`.
-_Avoid_: Log format, Printer style, Output template
+**TypeConverter**:
+A registry-based formatting mechanism for third-party types (DateTime, Duration, Uri) that cannot implement the Loggable mixin. Registered via `DiqitLogger.registerConverter<T>()`, converters provide human-readable string representation for common types without modifying their source code.
+_Avoid_: Type formatter, Custom serializer, Value printer
+_Status_: Approved in ADR-0003, pending implementation
