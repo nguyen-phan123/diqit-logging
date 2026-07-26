@@ -2,6 +2,7 @@ mod client;
 mod filter;
 mod log_event;
 mod parser;
+mod scanner;
 mod tui;
 
 use std::io;
@@ -25,15 +26,73 @@ use crate::tui::App;
 #[command(about = "TUI log viewer for diqit-logging WebSocket streams")]
 struct Cli {
     /// Device IP address and optional port (e.g., 192.168.1.5 or 192.168.1.5:8080)
-    #[arg(default_value = "127.0.0.1:9229")]
-    address: String,
+    /// If omitted, scans the local network for devices via mDNS.
+    address: Option<String>,
+}
+
+fn select_device() -> Option<(String, u16)> {
+    println!("Scanning for POS devices...");
+
+    let devices = scanner::scan_devices(5);
+
+    if devices.is_empty() {
+        println!("No devices found.");
+        print!("Enter IP address (or press Enter to quit): ");
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).ok()?;
+        let input = input.trim().to_string();
+        if input.is_empty() {
+            return None;
+        }
+        return Some(parse_address(&input));
+    }
+
+    println!();
+    for (i, d) in devices.iter().enumerate() {
+        println!("  {}. {}:{}", i + 1, d.ip, d.port);
+    }
+
+    loop {
+        print!("Choose a device (1-{}) or enter IP (r=rescan, Enter=quit): ", devices.len());
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).ok()?;
+        let input = input.trim().to_string();
+
+        if input.is_empty() {
+            return None;
+        }
+
+        if input == "r" {
+            return select_device();
+        }
+
+        if let Ok(idx) = input.parse::<usize>() {
+            if idx >= 1 && idx <= devices.len() {
+                let d = &devices[idx - 1];
+                return Some((d.ip.clone(), d.port));
+            }
+        }
+
+        // Treat as manual IP:port entry
+        return Some(parse_address(&input));
+    }
 }
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
-    let (host, port) = parse_address(&cli.address);
+    let (host, port) = if let Some(ref addr) = cli.address {
+        parse_address(addr)
+    } else {
+        match select_device() {
+            Some((h, p)) => (h, p),
+            None => {
+                eprintln!("No device selected. Exiting.");
+                return Ok(());
+            }
+        }
+    };
 
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
 
