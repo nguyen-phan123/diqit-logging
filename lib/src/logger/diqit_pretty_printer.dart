@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:diqit_logging/src/logger/aligned_pretty_printer.dart';
 import 'package:logger/logger.dart';
 
 /// Custom PrettyPrinter with preset configurations for common use cases.
@@ -208,10 +207,24 @@ class DPrettyPrinter extends PrettyPrinter {
   ///    Session started  // 3 spaces padding
   /// ```
   static LogPrinter minimalAligned({int paddingSize = 3}) {
-    return AlignedPrettyPrinter(
-      DPrettyPrinter.minimal(),
-      paddingSize: paddingSize,
-    );
+    final inner = DPrettyPrinter.minimal();
+    return _PaddingPrinter(inner, paddingSize: paddingSize);
+  }
+}
+
+class _PaddingPrinter extends LogPrinter {
+  final LogPrinter _printer;
+  final int _paddingSize;
+
+  _PaddingPrinter(this._printer, {int paddingSize = 3})
+      : _paddingSize = paddingSize;
+
+  @override
+  List<String> log(LogEvent event) {
+    final lines = _printer.log(event);
+    if (_paddingSize <= 0) return lines;
+    final padding = ' ' * _paddingSize;
+    return lines.map((line) => '$padding$line').toList();
   }
 }
 

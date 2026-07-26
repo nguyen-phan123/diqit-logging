@@ -1,4 +1,3 @@
-import 'package:diqit_logging/src/logger/diqit_log_printer.dart';
 import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:logger/logger.dart';
@@ -216,15 +215,11 @@ class LoggerConfig {
   // Private Helpers
   // ---------------------------------------------------------------------------
 
-  static LogPrinter _defaultPrinter(String prefix) => DiqitLogPrinter(
-        DPrettyPrinter.minimal(),
-        prefix: prefix,
-      );
+  static LogPrinter _defaultPrinter(String prefix) =>
+      DPrettyPrinter.minimal();
 
-  static LogPrinter _tracePrinter(String prefix) => DiqitLogPrinter(
-        DPrettyPrinter.trace(),
-        prefix: prefix,
-      );
+  static LogPrinter _tracePrinter(String prefix) =>
+      DPrettyPrinter.trace();
 
   static final Set<LogTag> _productionTags = {
     LogTag.payment,

@@ -1,11 +1,9 @@
 import 'dart:io';
 
 import 'package:diqit_logging/src/logger/diqit_log_message.dart';
-import 'package:diqit_logging/src/logger/diqit_log_printer.dart';
 import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:diqit_logging/src/logger/logger_config.dart';
-import 'package:diqit_logging/src/logger/printer_selector.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
 import 'package:diqit_logging/src/logger/type_converter.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
@@ -46,10 +44,8 @@ class DiqitLogger {
 
   // * --- Helpers ---
   final _typeConverterRegistry = TypeConverterRegistry();
-  final _printerSelector = PrinterSelector(
-    minimalPrinter: DShorthandPrinter(),
-    tracePrinter: DPrettyPrinter.trace(),
-  );
+  final _minimalPrinter = DShorthandPrinter();
+  final _tracePrinter = DPrettyPrinter.trace();
 
   DiqitLogger._() {
     ZoneTrace.onError = _onZoneTraceError;
@@ -96,6 +92,51 @@ class DiqitLogger {
   /// ```
   static DiqitChildLogger createChild(String name) {
     return DiqitChildLogger._(name);
+  }
+
+  /// Unified log method replacing all shorthand/full variants.
+  ///
+  /// [level] — log severity. [shorthand] — true uses minimal inline printer,
+  /// false uses full trace printer with stack frames.
+  ///
+  /// Example:
+  /// ```dart
+  /// DiqitLogger.log(Level.info, 'hello', tag: LogTag.order);
+  /// DiqitLogger.log(Level.error, 'fail', error: e, stackTrace: s,
+  ///     traceId: TraceId.manual('login', 1), shorthand: false);
+  /// ```
+  static void log(
+    Level level,
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+    bool shorthand = true,
+    int? countMethod,
+  }) {
+    final printer = countMethod != null
+        ? DPrettyPrinter.trace(
+            methodCount: countMethod,
+            stackTraceBeginIndex: 0,
+          )
+        : shorthand
+            ? _instance._minimalPrinter
+            : _instance._tracePrinter;
+
+    _instance._log(
+      level,
+      message,
+      tag,
+      error,
+      stackTrace,
+      data: data,
+      printer: printer,
+      traceId: traceId,
+      context: context,
+    );
   }
 
   /// Updates the logger configuration at runtime.
@@ -407,13 +448,7 @@ class DiqitLogger {
       outputs.add(_fileOutput!);
     }
 
-    var finalPrinter = _config.printer;
-
-    // If an ephemeral printer is provided (e.g. via static methods),
-    // wrap it to ensure Diqit features (prefix, tags) still work.
-    if (printer != null) {
-      finalPrinter = DiqitLogPrinter(printer, prefix: _config.prefixMessage);
-    }
+    var finalPrinter = printer ?? _config.printer;
 
     return Logger(
       level: Level.all, // Filter decides
@@ -449,19 +484,20 @@ class DiqitLogger {
     final resolvedContext = context ?? ZoneTrace.currentContext();
 
     final logMsg = DLogMessage(
-      message,
-      tag,
-      data,
-      resolvedTraceId,
-      _typeConverterRegistry,
-      resolvedContext,
-      path,
-      ZoneTrace.sourceAppName,
+      message: message,
+      tag: tag,
+      data: data,
+      traceId: resolvedTraceId,
+      typeConverterRegistry: _typeConverterRegistry,
+      context: resolvedContext,
+      path: path,
+      source: ZoneTrace.sourceAppName,
+      prefix: _config.prefixMessage,
     );
 
     final targetLogger = printer != null
         ? _createLoggerInstance(printer: printer)
-        : (_activeLogger!);
+        : _activeLogger!;
 
     targetLogger.log(
       level,
@@ -521,101 +557,136 @@ class DiqitLogger {
     }
   }
 
-  /// Logs a [Level.trace] message (Verbose).
-  ///
-  /// **Short Version**: Uses minimal printer.
-  static void t(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
+  @Deprecated('Use log(Level.level, msg, shorthand: true) instead')
+  static void t(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.trace,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: true,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
+  }) => log(Level.trace, message, data: data, tag: tag,
+      traceId: traceId, context: context);
 
-  /// Logs a [Level.trace] message (Verbose).
-  ///
-  /// **Full Version**: Uses trace printer.
-  static void trace(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
+  @Deprecated('Use log(Level.trace, msg, shorthand: false) instead')
+  static void trace(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, int? countMethod,
+    TraceId? traceId, Map<String, dynamic>? context,
+  }) => log(Level.trace, message, data: data, tag: tag,
+      traceId: traceId, context: context, shorthand: false,
+      countMethod: countMethod);
+
+  @Deprecated('Use log(Level.debug, msg, shorthand: true) instead')
+  static void d(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.trace,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: false,
-          countMethod: countMethod,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
+  }) => log(Level.debug, message, data: data, tag: tag,
+      traceId: traceId, context: context);
 
-  /// Logs a [Level.trace] message specifically for flow execution tracing.
-  /// Uses a custom 'function' tag to support filtering.
+  @Deprecated('Use log(Level.debug, msg, shorthand: false) instead')
+  static void debug(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, int? countMethod,
+    TraceId? traceId, Map<String, dynamic>? context,
+  }) => log(Level.debug, message, data: data, tag: tag,
+      traceId: traceId, context: context, shorthand: false,
+      countMethod: countMethod);
+
+  @Deprecated('Use log(Level.info, msg, shorthand: true) instead')
+  static void i(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) => log(Level.info, message, data: data, tag: tag,
+      traceId: traceId, context: context);
+
+  @Deprecated('Use log(Level.info, msg, shorthand: false) instead')
+  static void info(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, int? countMethod,
+    TraceId? traceId, Map<String, dynamic>? context,
+  }) => log(Level.info, message, data: data, tag: tag,
+      traceId: traceId, context: context, shorthand: false,
+      countMethod: countMethod);
+
+  @Deprecated('Use log(Level.warning, msg, shorthand: true) instead')
+  static void w(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) => log(Level.warning, message, data: data, tag: tag,
+      traceId: traceId, context: context);
+
+  @Deprecated('Use log(Level.warning, msg, shorthand: false) instead')
+  static void warning(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, int? countMethod,
+    TraceId? traceId, Map<String, dynamic>? context,
+  }) => log(Level.warning, message, data: data, tag: tag,
+      traceId: traceId, context: context, shorthand: false,
+      countMethod: countMethod);
+
+  @Deprecated('Use log(Level.error, msg, shorthand: true) instead')
+  static void e(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    dynamic error, StackTrace? stackTrace,
+    DPrettyPrinter? printer, TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) => log(Level.error, message, data: data, tag: tag,
+      error: error, stackTrace: stackTrace,
+      traceId: traceId, context: context);
+
+  @Deprecated('Use log(Level.error, msg, shorthand: false) instead')
+  static void error(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    dynamic error, StackTrace? stackTrace,
+    DPrettyPrinter? printer, int? countMethod,
+    TraceId? traceId, Map<String, dynamic>? context,
+  }) => log(Level.error, message, data: data, tag: tag,
+      error: error, stackTrace: stackTrace,
+      traceId: traceId, context: context, shorthand: false,
+      countMethod: countMethod);
+
+  @Deprecated('Use log(Level.fatal, msg, shorthand: true) instead')
+  static void ft(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    dynamic error, StackTrace? stackTrace,
+    DPrettyPrinter? printer, TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) => log(Level.fatal, message, data: data, tag: tag,
+      error: error, stackTrace: stackTrace,
+      traceId: traceId, context: context);
+
+  @Deprecated('Use log(Level.fatal, msg, shorthand: false) instead')
+  static void fatal(String message, {
+    dynamic data, LogTag tag = LogTag.none,
+    dynamic error, StackTrace? stackTrace,
+    DPrettyPrinter? printer, int? countMethod,
+    TraceId? traceId, Map<String, dynamic>? context,
+  }) => log(Level.fatal, message, data: data, tag: tag,
+      error: error, stackTrace: stackTrace,
+      traceId: traceId, context: context, shorthand: false,
+      countMethod: countMethod);
+
+  /// Logs a flow execution trace (uses debug level, function tag).
   static void flow({
-    Map<String, dynamic>? args,
-    DPrettyPrinter? printer,
-    LogTag? tag,
-    TraceId? traceId,
+    Map<String, dynamic>? args, DPrettyPrinter? printer,
+    LogTag? tag, TraceId? traceId,
     Map<String, dynamic>? context,
   }) {
     final stackTrace = StackTrace.current.toString().split('\n');
-    // Index 0: StackTrace.current
-    // Index 1: DiqitLogger.flow
-    // Index 2: The function calling flow() (current function)
-    // Index 3: The function calling the current function
-
     final currentFunc =
         _extractFunctionName(stackTrace.length > 2 ? stackTrace[2] : '');
     final callerFunc =
         _extractFunctionName(stackTrace.length > 3 ? stackTrace[3] : '');
-
     final flowPath =
         callerFunc.isNotEmpty ? '$callerFunc -> $currentFunc' : currentFunc;
     var finalMessage = '[$flowPath]';
-
     if (args != null && args.isNotEmpty) {
       finalMessage += '\nParams: $args';
     }
-
-    _instance._log(
-      Level.debug,
-      finalMessage,
-      tag ?? LogTag.custom('function'),
-      null,
-      null,
-      printer: _instance._printerSelector.select(
-        isShorthand: true,
-        customPrinter: printer,
-      ),
-      traceId: traceId,
-      context: context,
-    );
+    log(Level.debug, finalMessage,
+        tag: tag ?? LogTag.custom('function'),
+        traceId: traceId, context: context);
   }
 
   static String _extractFunctionName(String stackTraceLine) {
@@ -628,301 +699,13 @@ class DiqitLogger {
     }
     return '';
   }
-
-  /// Logs a [Level.debug] message.
-  ///
-  /// **Short Version**: Uses minimal printer.
-  static void d(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.debug,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: true,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.debug] message.
-  ///
-  /// **Full Version**: Uses trace printer.
-  static void debug(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.debug,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: false,
-          countMethod: countMethod,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.info] message.
-  ///
-  /// **Short Version**: Uses minimal printer.
-  static void i(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.info,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: true,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.info] message.
-  ///
-  /// **Full Version**: Uses trace printer.
-  static void info(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.info,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: false,
-          countMethod: countMethod,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.warning] message.
-  ///
-  /// **Short Version**: Uses minimal printer.
-  static void w(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.warning,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: true,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.warning] message.
-  ///
-  /// **Full Version**: Uses trace printer.
-  static void warning(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.warning,
-        message,
-        tag,
-        null,
-        null,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: false,
-          countMethod: countMethod,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.error] message.
-  ///
-  /// **Short Version**: Uses minimal printer.
-  static void e(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.error,
-        message,
-        tag,
-        error,
-        stackTrace,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: true,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.error] message.
-  ///
-  /// **Full Version**: Uses trace printer.
-  static void error(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.error,
-        message,
-        tag,
-        error,
-        stackTrace,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: false,
-          countMethod: countMethod,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.fatal] message (Critical failure).
-  ///
-  /// **Short Version**: Uses minimal printer.
-  static void ft(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.fatal,
-        message,
-        tag,
-        error,
-        stackTrace,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: true,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
-
-  /// Logs a [Level.fatal] message (Critical failure).
-  ///
-  /// **Full Version**: Uses trace printer.
-  static void fatal(
-    String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      _instance._log(
-        Level.fatal,
-        message,
-        tag,
-        error,
-        stackTrace,
-        data: data,
-        printer: _instance._printerSelector.select(
-          isShorthand: false,
-          countMethod: countMethod,
-          customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-      );
 }
 
 /// {@template diqit_child_logger}
 /// A child logger with a namespace path, created via [DiqitLogger.createChild].
 ///
-/// Child loggers delegate all logging to the root singleton while prepending
-/// their namespace path to every log message. They support further nesting
-/// via their own [createChild] method.
-///
-/// Example:
-/// ```dart
-/// final kdsLogger = DiqitLogger.createChild('kds');
-/// kdsLogger.i('KDS started');  // Output: [kds] -> KDS started
-///
-/// final gridLogger = kdsLogger.createChild('order_grid');
-/// gridLogger.d('Bump order');  // Output: [kds/order_grid] -> Bump order
-/// ```
+/// Delegates all logging to the root singleton while injecting the namespace
+/// path. Supports further nesting via [createChild].
 /// {@endtemplate}
 class DiqitChildLogger {
   final String _path;
@@ -937,263 +720,88 @@ class DiqitChildLogger {
     return DiqitChildLogger._(_path.isEmpty ? name : '$_path/$name');
   }
 
-  /// Logs a [Level.trace] message (Verbose).
+  /// Unified log method injecting this child's namespace path.
+  ///
+  /// All parameters mirror [DiqitLogger.log].
+  void log(
+    Level level,
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+    bool shorthand = true,
+    int? countMethod,
+  }) =>
+      DiqitLogger._instance._log(
+        level, message, tag, error, stackTrace,
+        data: data, printer: _resolvePrinter(shorthand, countMethod),
+        traceId: traceId, context: context, path: _path,
+      );
+
+  DPrettyPrinter _resolvePrinter(bool shorthand, int? countMethod) {
+    if (countMethod != null) {
+      return DPrettyPrinter.trace(
+          methodCount: countMethod, stackTraceBeginIndex: 0);
+    }
+    return shorthand
+        ? DiqitLogger._instance._minimalPrinter
+        : DiqitLogger._instance._tracePrinter;
+  }
+
+  @Deprecated('Use log(Level.trace, msg) instead')
   void t(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.trace, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: true, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
+  }) => log(Level.trace, message, data: data, tag: tag,
+      traceId: traceId, context: context);
 
-  /// Logs a [Level.trace] message (Verbose, full version).
-  void trace(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.trace, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: false, countMethod: countMethod, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
-
-  /// Logs a [Level.debug] message.
+  @Deprecated('Use log(Level.debug, msg) instead')
   void d(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.debug, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: true, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
+  }) => log(Level.debug, message, data: data, tag: tag,
+      traceId: traceId, context: context);
 
-  /// Logs a [Level.debug] message (full version).
-  void debug(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.debug, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: false, countMethod: countMethod, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
-
-  /// Logs a [Level.info] message.
+  @Deprecated('Use log(Level.info, msg) instead')
   void i(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.info, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: true, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
+  }) => log(Level.info, message, data: data, tag: tag,
+      traceId: traceId, context: context);
 
-  /// Logs a [Level.info] message (full version).
-  void info(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.info, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: false, countMethod: countMethod, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
-
-  /// Logs a [Level.warning] message.
+  @Deprecated('Use log(Level.warning, msg) instead')
   void w(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
+    dynamic data, LogTag tag = LogTag.none,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.warning, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: true, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
+  }) => log(Level.warning, message, data: data, tag: tag,
+      traceId: traceId, context: context);
 
-  /// Logs a [Level.warning] message (full version).
-  void warning(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.warning, message, tag, null, null,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: false, countMethod: countMethod, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
-
-  /// Logs a [Level.error] message.
+  @Deprecated('Use log(Level.error, msg) instead')
   void e(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
+    dynamic data, LogTag tag = LogTag.none,
+    dynamic error, StackTrace? stackTrace,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.error, message, tag, error, stackTrace,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: true, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
+  }) => log(Level.error, message, data: data, tag: tag,
+      error: error, stackTrace: stackTrace,
+      traceId: traceId, context: context);
 
-  /// Logs a [Level.error] message (full version).
-  void error(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.error, message, tag, error, stackTrace,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: false, countMethod: countMethod, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
-
-  /// Logs a [Level.fatal] message (Critical failure).
+  @Deprecated('Use log(Level.fatal, msg) instead')
   void ft(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    TraceId? traceId,
+    dynamic data, LogTag tag = LogTag.none,
+    dynamic error, StackTrace? stackTrace,
+    DPrettyPrinter? printer, TraceId? traceId,
     Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.fatal, message, tag, error, stackTrace,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: true, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
-
-  /// Logs a [Level.fatal] message (Critical failure, full version).
-  void fatal(String message, {
-    dynamic data,
-    LogTag tag = LogTag.none,
-    dynamic error,
-    StackTrace? stackTrace,
-    DPrettyPrinter? printer,
-    int? countMethod,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger._instance._log(
-        Level.fatal, message, tag, error, stackTrace,
-        data: data,
-        printer: DiqitLogger._instance._printerSelector.select(
-          isShorthand: false, countMethod: countMethod, customPrinter: printer,
-        ),
-        traceId: traceId,
-        context: context,
-        path: _path,
-      );
-
-  /// Logs a flow execution trace.
-  void flow({
-    Map<String, dynamic>? args,
-    DPrettyPrinter? printer,
-    LogTag? tag,
-    TraceId? traceId,
-    Map<String, dynamic>? context,
-  }) =>
-      DiqitLogger.flow(
-        args: args,
-        printer: printer,
-        tag: tag,
-        traceId: traceId,
-        context: context,
-      );
+  }) => log(Level.fatal, message, data: data, tag: tag,
+      error: error, stackTrace: stackTrace,
+      traceId: traceId, context: context);
 }
 
 /// Inline filter that delegates tag filtering logic to LoggerConfig.

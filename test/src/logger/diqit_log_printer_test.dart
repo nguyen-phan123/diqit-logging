@@ -2,7 +2,7 @@ import 'package:diqit_logging/diqit_logging.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('DiqitLogPrinter & DShorthandPrinter Tracing', () {
+  group('Log Output Formatting', () {
     test('traceId should appear once in log line when in zone', () async {
       await DiqitLogger.initialize(LoggerConfig.development());
 
