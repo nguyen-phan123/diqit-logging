@@ -1,0 +1,14 @@
+[package]
+name = "diqit-log"
+version = "0.1.0"
+edition = "2021"
+description = "TUI log viewer for diqit-logging WebSocket streams"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+ratatui = "0.29"
+crossterm = "0.28"
+clap = { version = "4", features = ["derive"] }
+regex = "1"
