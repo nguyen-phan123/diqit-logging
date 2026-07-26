@@ -4,6 +4,7 @@ import 'package:diqit_logging/src/logger/diqit_log_message.dart';
 import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:diqit_logging/src/logger/logger_config.dart';
+import 'package:diqit_logging/src/logger/network_output.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
 import 'package:diqit_logging/src/logger/type_converter.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
@@ -46,6 +47,10 @@ class DiqitLogger {
 
   // * --- Output State ---
   AdvancedFileOutput? _fileOutput;
+  NetworkOutput? _networkOutput;
+
+  /// The active network output, if network logging is enabled.
+  NetworkOutput? get networkOutput => _networkOutput;
 
   // * --- Helpers ---
   final _typeConverterRegistry = TypeConverterRegistry();
@@ -372,6 +377,8 @@ class DiqitLogger {
 
     await _initializeFileOutput(config);
 
+    await _initializeNetworkOutput(config);
+
     _activeLogger = _createLoggerInstance();
 
     // Wire cross-app source identity
@@ -409,6 +416,8 @@ class DiqitLogger {
 
     await _initializeFileOutput(config);
 
+    await _initializeNetworkOutput(config);
+
     _activeLogger = _createLoggerInstance();
 
     // Wire cross-app source identity
@@ -442,6 +451,11 @@ class DiqitLogger {
     // Add file output if enabled and initialized
     if (_fileOutput != null && _config.enableFileLogging) {
       outputs.add(_fileOutput!);
+    }
+
+    // Add network output if enabled and initialized
+    if (_networkOutput != null && _config.enableNetworkLogging) {
+      outputs.add(_networkOutput!);
     }
 
     var finalPrinter = printer ?? _config.printer;
@@ -551,6 +565,28 @@ class DiqitLogger {
     } catch (e) {
       print('Failed to initialize file logging: $e');
       _fileOutput = null;
+    }
+  }
+
+  /// Initializes network output (WebSocket server) based on config.
+  Future<void> _initializeNetworkOutput(LoggerConfig config) async {
+    await _networkOutput?.stop();
+    _networkOutput = null;
+
+    if (!config.enableNetworkLogging) return;
+
+    try {
+      _networkOutput = NetworkOutput(port: config.networkPort);
+      await _networkOutput!.start(
+        bufferGetter: () => _globalBuffer.buffer.toList(),
+      );
+      print(
+        '[DiqitLogger] Log stream available at ws://0.0.0.0:'
+        '${config.networkPort}',
+      );
+    } catch (e) {
+      print('[DiqitLogger] Failed to start network output: $e');
+      _networkOutput = null;
     }
   }
 

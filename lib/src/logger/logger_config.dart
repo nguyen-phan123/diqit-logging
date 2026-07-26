@@ -14,6 +14,8 @@ class LoggerConfig {
   final Level minLogLevel;
   final bool enableConsoleLogging;
   final bool enableFileLogging;
+  final bool enableNetworkLogging;
+  final int networkPort;
   final String? logDirectory;
   final Set<LogTag> enabledTags;
   final Set<LogTag> disabledTags;
@@ -28,6 +30,8 @@ class LoggerConfig {
     this.minLogLevel = Level.debug,
     this.enableConsoleLogging = false,
     this.enableFileLogging = false,
+    this.enableNetworkLogging = false,
+    this.networkPort = 9229,
     this.logDirectory,
     Set<LogTag>? enabledTags,
     Set<LogTag>? disabledTags,
@@ -182,6 +186,8 @@ class LoggerConfig {
     Level? minLogLevel,
     bool? enableConsoleLogging,
     bool? enableFileLogging,
+    bool? enableNetworkLogging,
+    int? networkPort,
     String? logDirectory,
     Set<LogTag>? enabledTags,
     Set<LogTag>? disabledTags,
@@ -199,6 +205,9 @@ class LoggerConfig {
       minLogLevel: minLogLevel ?? this.minLogLevel,
       enableConsoleLogging: enableConsoleLogging ?? this.enableConsoleLogging,
       enableFileLogging: enableFileLogging ?? this.enableFileLogging,
+      enableNetworkLogging:
+          enableNetworkLogging ?? this.enableNetworkLogging,
+      networkPort: networkPort ?? this.networkPort,
       logDirectory: logDirectory ?? this.logDirectory,
       enabledTags: enabledTags ?? this.enabledTags,
       disabledTags: disabledTags ?? this.disabledTags,
