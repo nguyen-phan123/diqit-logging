@@ -2,6 +2,7 @@ import 'package:diqit_logging/src/internal/file_log_manager.dart';
 import 'package:diqit_logging/src/internal/log_history_manager.dart';
 import 'package:diqit_logging/src/logger/logger.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
+import 'package:diqit_logging/src/logger/type_converter.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
 import 'package:logger/logger.dart';
 
@@ -37,6 +38,7 @@ class DiqitLogger {
   // * --- Helpers ---
   final _historyManager = LogHistoryManager();
   final _fileManager = FileLogManager();
+  final _typeConverterRegistry = TypeConverterRegistry();
   final _printerSelector = PrinterSelector(
     minimalPrinter: DShorthandPrinter(),
     tracePrinter: DPrettyPrinter.trace(),
@@ -46,7 +48,11 @@ class DiqitLogger {
     ZoneTrace.onError = _onZoneTraceError;
   }
 
-  static void _onZoneTraceError(Object error, StackTrace stackTrace, TraceId traceId) {
+  static void _onZoneTraceError(
+    Object error,
+    StackTrace stackTrace,
+    TraceId traceId,
+  ) {
     _instance._log(
       Level.error,
       'Uncaught error in traced zone [$traceId]: $error',
@@ -105,6 +111,48 @@ class DiqitLogger {
   /// [lastN] - Optional: Limit to the last N lines.
   static String exportLogs({int? lastN}) =>
       _instance._historyManager.exportLogs(lastN: lastN);
+
+  // * --- Type Converter Public API ---
+
+  /// Registers a type converter for formatting custom types in logs.
+  ///
+  /// Use this to register custom string representations for types you don't
+  /// own (like `DateTime`, `Duration`, `Uri`) that cannot implement `Loggable`.
+  ///
+  /// Example:
+  /// ```dart
+  /// await DiqitLogger.initialize(config);
+  ///
+  /// // Register converters for common types
+  /// DiqitLogger.registerConverter<DateTime>((dt) => dt.toIso8601String());
+  /// DiqitLogger.registerConverter<Duration>((d) => '${d.inSeconds}s');
+  ///
+  /// // Later in code
+  /// DiqitLogger.i('Event scheduled', data: DateTime.now());
+  /// // Output: Event scheduled
+  /// //         Data: 2026-07-26T10:30:45.123Z
+  /// ```
+  ///
+  /// When logging with the `data` parameter, the logger tries:
+  /// 1. **Loggable check** — if `data is Loggable`, call `toLoggableMap()`
+  /// 2. **TypeConverter check** — if registered converter exists, use it
+  /// 3. **Fallback** — call `data.toString()`
+  static void registerConverter<T>(TypeConverter<T> converter) {
+    _instance._typeConverterRegistry.register<T>(converter);
+  }
+
+  /// Unregister a type converter.
+  ///
+  /// Returns `true` if a converter was removed, `false` otherwise.
+  static bool unregisterConverter<T>() {
+    return _instance._typeConverterRegistry.unregister<T>();
+  }
+
+  /// Returns the type converter registry instance for advanced usage.
+  ///
+  /// Most users should use [registerConverter] instead.
+  static TypeConverterRegistry get typeConverterRegistry =>
+      _instance._typeConverterRegistry;
 
   // * --- Trace Propagation Public API ---
 
@@ -256,7 +304,13 @@ class DiqitLogger {
     // Resolve trace ID: explicit parameter > zone context > null
     final resolvedTraceId = traceId ?? _resolveZoneTrace();
 
-    final logMsg = DLogMessage(message, tag, data, resolvedTraceId);
+    final logMsg = DLogMessage(
+      message,
+      tag,
+      data,
+      resolvedTraceId,
+      _typeConverterRegistry,
+    );
 
     final targetLogger = printer != null
         ? _createLoggerInstance(printer: printer)

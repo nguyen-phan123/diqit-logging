@@ -1,19 +1,23 @@
 import 'dart:convert';
 
 import 'package:diqit_logging/src/logger/log_tag.dart';
+import 'package:diqit_logging/src/logger/loggable.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
+import 'package:diqit_logging/src/logger/type_converter.dart';
 
 class DLogMessage {
   final String message;
   final LogTag tag;
   final dynamic data;
   final TraceId? traceId;
+  final TypeConverterRegistry? typeConverterRegistry;
 
   const DLogMessage(
     this.message, [
     this.tag = LogTag.none,
     this.data,
     this.traceId,
+    this.typeConverterRegistry,
   ]);
 
   @override
@@ -28,22 +32,90 @@ class DLogMessage {
     buffer.write(message);
 
     if (data != null) {
-      buffer.write('\n${_formatData(data)}');
+      buffer.write('\n${_formatData(data, typeConverterRegistry)}');
     }
 
     return buffer.toString();
   }
 
-  static String _formatData(dynamic data) {
+  static String _formatData(
+    dynamic data,
+    TypeConverterRegistry? registry,
+  ) {
+    // 1. Check if data implements Loggable
+    if (data is Loggable) {
+      try {
+        final loggableMap = data.toLoggableMap();
+        return _formatLoggableMap(loggableMap);
+      } catch (e) {
+        return 'Data: [Loggable formatting error: $e]';
+      }
+    }
+
+    // 2. Check if TypeConverter exists for this type
+    if (registry != null && data is Object) {
+      final converted = registry.convert(data);
+      if (converted != null) {
+        return 'Data: $converted';
+      }
+    }
+
+    // 3. Fallback to JSON encoding (legacy behavior)
     try {
       const encoder = JsonEncoder.withIndent('  ');
       final jsonString = encoder.convert(
         data is String ? data : _toJsonSafe(data),
       );
-      return '{\n  "data": $jsonString\n}';
+      return 'Data:\n{\n  "data": $jsonString\n}';
     } catch (_) {
-      return '{\n  "data": $data\n}';
+      return 'Data:\n{\n  "data": $data\n}';
     }
+  }
+
+  static String _formatLoggableMap(Map<String, dynamic> map) {
+    if (map.isEmpty) {
+      return 'Data: {}';
+    }
+
+    final buffer = StringBuffer('Data: {');
+    final entries = map.entries.toList();
+
+    for (var i = 0; i < entries.length; i++) {
+      final entry = entries[i];
+      final formattedValue = _formatLoggableValue(entry.value);
+      buffer.write('${entry.key}: $formattedValue');
+      if (i < entries.length - 1) {
+        buffer.write(', ');
+      }
+    }
+
+    buffer.write('}');
+    return buffer.toString();
+  }
+
+  /// Recursively format a value from a Loggable map
+  static String _formatLoggableValue(dynamic value) {
+    if (value is Loggable) {
+      final nestedMap = value.toLoggableMap();
+      if (nestedMap.isEmpty) return '{}';
+
+      final buffer = StringBuffer('{');
+      final entries = nestedMap.entries.toList();
+
+      for (var i = 0; i < entries.length; i++) {
+        final entry = entries[i];
+        final formattedValue = _formatLoggableValue(entry.value);
+        buffer.write('${entry.key}: $formattedValue');
+        if (i < entries.length - 1) {
+          buffer.write(', ');
+        }
+      }
+
+      buffer.write('}');
+      return buffer.toString();
+    }
+
+    return value.toString();
   }
 
   static dynamic _toJsonSafe(dynamic value) {
