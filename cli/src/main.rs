@@ -149,7 +149,7 @@ async fn run_tui<B: ratatui::backend::Backend>(
                     if let event::Event::Key(key) = event::read()? {
                         if key.kind == KeyEventKind::Press {
                             match key.code {
-                                KeyCode::Char(ch) if ch != '/' => {
+                                KeyCode::Char(ch) if ch != '/' && ch != 'q' => {
                                     app.handle_input(ch);
                                 }
                                 code => {
