@@ -115,27 +115,31 @@ impl App {
         };
 
         let area_height = area.height as usize;
-        let lines_per_event: Vec<usize> = visible.iter().map(|e| e.lines.len()).collect();
-
-        let mut display_start = start;
-        let mut height_used = 0usize;
-        for i in (0..=start).rev() {
-            if height_used + lines_per_event[i] > area_height {
-                break;
-            }
-            height_used += lines_per_event[i];
-            display_start = i;
-        }
 
         let mut items: Vec<Line> = Vec::new();
-        for event in visible.iter().skip(display_start) {
-            if items.len() >= area_height {
-                break;
+
+        if total > 0 {
+            let lines_per_event: Vec<usize> = visible.iter().map(|e| e.lines.len()).collect();
+
+            let mut display_start = start;
+            let mut height_used = 0usize;
+            for i in (0..=start).rev() {
+                if height_used + lines_per_event[i] > area_height {
+                    break;
+                }
+                height_used += lines_per_event[i];
+                display_start = i;
             }
-            let color = level_color(&event.level);
-            for line in &event.lines {
-                let clean = crate::parser::strip_ansi(line);
-                items.push(Line::from(Span::styled(clean, Style::default().fg(color))));
+
+            for event in visible.iter().skip(display_start) {
+                if items.len() >= area_height {
+                    break;
+                }
+                let color = level_color(&event.level);
+                for line in &event.lines {
+                    let clean = crate::parser::strip_ansi(line);
+                    items.push(Line::from(Span::styled(clean, Style::default().fg(color))));
+                }
             }
         }
 
