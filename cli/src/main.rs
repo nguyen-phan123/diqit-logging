@@ -95,6 +95,7 @@ async fn main() -> io::Result<()> {
     };
 
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+    let (cmd_tx, cmd_rx) = mpsc::unbounded_channel::<String>();
 
     let url = format!("ws://{}:{}", host, port);
 
@@ -102,7 +103,7 @@ async fn main() -> io::Result<()> {
 
     let tx_clone = tx.clone();
     tokio::spawn(async move {
-        client.run(tx_clone).await;
+        client.run(tx_clone, cmd_rx).await;
     });
 
     // Terminal setup
@@ -112,7 +113,7 @@ async fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(tx);
+    let mut app = App::new(tx, cmd_tx);
 
     // Run the TUI loop
     let res = run_tui(&mut terminal, &mut app, &mut rx, &url).await;

@@ -31,11 +31,16 @@ pub struct App {
     scroll: usize,
     tail: bool,
     row_count: u16,
+    #[allow(dead_code)]
     pub tx: mpsc::UnboundedSender<String>,
+    cmd_tx: mpsc::UnboundedSender<String>,
 }
 
 impl App {
-    pub fn new(tx: mpsc::UnboundedSender<String>) -> Self {
+    pub fn new(
+        tx: mpsc::UnboundedSender<String>,
+        cmd_tx: mpsc::UnboundedSender<String>,
+    ) -> Self {
         Self {
             events: Vec::new(),
             filter: Filter::new(),
@@ -43,6 +48,7 @@ impl App {
             tail: true,
             row_count: 0,
             tx,
+            cmd_tx,
         }
     }
 
@@ -212,6 +218,22 @@ impl App {
             KeyCode::Char('4') => self.filter.toggle_level(&crate::parser::LogLevel::Warning),
             KeyCode::Char('5') => self.filter.toggle_level(&crate::parser::LogLevel::Error),
             KeyCode::Char('6') => self.filter.toggle_level(&crate::parser::LogLevel::Fatal),
+            KeyCode::Enter => {
+                let raw = self.filter.raw().to_string();
+                if raw.starts_with('!') {
+                    let _ = self.cmd_tx.send(raw);
+                    self.filter.set_pattern("");
+                } else {
+                    self.filter.set_pattern("");
+                }
+            }
+            KeyCode::Backspace => {
+                let current = self.filter.raw().to_string();
+                if !current.is_empty() {
+                    self.filter
+                        .set_pattern(&current[..current.len() - 1]);
+                }
+            }
             KeyCode::Up => self.scroll_up(1),
             KeyCode::Down => self.scroll_down(1),
             KeyCode::PageUp => self.scroll_up(10),

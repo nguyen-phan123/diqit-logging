@@ -40,7 +40,11 @@ impl LogClient {
         std::mem::take(&mut self.buffer)
     }
 
-    pub async fn run(mut self, tx: tokio::sync::mpsc::UnboundedSender<String>) {
+    pub async fn run(
+        mut self,
+        tx: tokio::sync::mpsc::UnboundedSender<String>,
+        mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<String>,
+    ) {
         loop {
             self.state = ConnectionState::Reconnecting;
 
@@ -68,6 +72,17 @@ impl LogClient {
                                         break;
                                     }
                                     _ => {}
+                                }
+                            }
+                            cmd = cmd_rx.recv() => {
+                                match cmd {
+                                    Some(text) => {
+                                        let _ = write.send(Message::Text(text.into())).await;
+                                    }
+                                    None => {
+                                        let _ = write.close().await;
+                                        return;
+                                    }
                                 }
                             }
                             _ = tx.closed() => {
