@@ -5,6 +5,7 @@ import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:diqit_logging/src/logger/logger_config.dart';
 import 'package:diqit_logging/src/logger/network_output.dart';
+import 'package:diqit_logging/src/logger/safe_console_output.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
 import 'package:diqit_logging/src/logger/type_converter.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
@@ -32,7 +33,7 @@ class DiqitLogger {
   DiqitLogger([this._path = '']);
 
   /// Shared in-memory buffer across all logger instances.
-  static final _globalBuffer = MemoryOutput(bufferSize: 1000);
+  static MemoryOutput _globalBuffer = MemoryOutput(bufferSize: 1000);
 
   /// The default root logger instance for static convenience API.
   static final DiqitLogger root = DiqitLogger._();
@@ -179,6 +180,19 @@ class DiqitLogger {
       buffer.writeln('-' * 20);
     }
     return buffer.toString();
+  }
+
+  /// Clears the in-memory log history buffer.
+  ///
+  /// Discards all buffered log events and starts fresh. Affects all connected
+  /// NetworkOutput clients — the next buffer dump will show an empty history.
+  ///
+  /// Example:
+  /// ```dart
+  /// DiqitLogger.clearLogHistory();
+  /// ```
+  static void clearLogHistory() {
+    root._clearLogHistoryInternal();
   }
 
   // * --- Type Converter Public API ---
@@ -430,6 +444,11 @@ class DiqitLogger {
     _activeLogger = _createLoggerInstance();
   }
 
+  void _clearLogHistoryInternal() {
+    _globalBuffer = MemoryOutput(bufferSize: 1000);
+    _activeLogger = _createLoggerInstance();
+  }
+
   /// Internal helper to construct the Logger
   Logger _createLoggerInstance({
     LogPrinter? printer,
@@ -438,7 +457,7 @@ class DiqitLogger {
     final outputs = <LogOutput>[];
 
     if (_config.enableConsoleLogging) {
-      outputs.add(ConsoleOutput());
+      outputs.add(SafeConsoleOutput());
     }
 
     if (_config.output != null) {
@@ -579,6 +598,7 @@ class DiqitLogger {
       _networkOutput = NetworkOutput(port: config.networkPort);
       await _networkOutput!.start(
         bufferGetter: () => _globalBuffer.buffer.toList(),
+        onClear: _clearLogHistoryInternal,
       );
       print(
         '[DiqitLogger] Log stream available at ws://0.0.0.0:'

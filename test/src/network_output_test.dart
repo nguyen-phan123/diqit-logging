@@ -191,5 +191,126 @@ void main() {
       expect(received.first, contains('first buffered message'));
       expect(received.last, contains('second buffered message'));
     });
+
+    test('clearLogHistory() empties the log buffer', () async {
+      await DiqitLogger.initialize(
+        LoggerConfig.development().copyWith(
+          enableNetworkLogging: true,
+          networkPort: 0,
+        ),
+      );
+
+      DiqitLogger.i('message before clear');
+
+      final before = DiqitLogger.getLogHistory();
+      expect(before, isNotEmpty);
+
+      DiqitLogger.clearLogHistory();
+
+      final after = DiqitLogger.getLogHistory();
+      expect(after, isEmpty);
+    });
+
+    test('!clear command via WebSocket clears buffer and sends OK',
+        () async {
+      await DiqitLogger.initialize(
+        LoggerConfig.development().copyWith(
+          enableNetworkLogging: true,
+          networkPort: 0,
+        ),
+      );
+
+      DiqitLogger.i('message to be cleared');
+
+      final port = DiqitLogger.root.networkOutput!.actualPort;
+      final ws = await WebSocket.connect('ws://127.0.0.1:$port');
+
+      ws.add('!clear');
+
+      String? response;
+      await for (final message in ws) {
+        final s = message as String;
+        if (s.contains('!OK')) {
+          response = s;
+          break;
+        }
+      }
+
+      await ws.close();
+
+      expect(response, equals('!OK Buffer cleared'));
+      expect(DiqitLogger.getLogHistory(), isEmpty);
+    });
+
+    test('!copy command via WebSocket sends formatted buffer dump',
+        () async {
+      await DiqitLogger.initialize(
+        LoggerConfig.development().copyWith(
+          enableNetworkLogging: true,
+          networkPort: 0,
+        ),
+      );
+
+      DiqitLogger.clearLogHistory();
+
+      DiqitLogger.i('copy target message');
+
+      final port = DiqitLogger.root.networkOutput!.actualPort;
+      final ws = await WebSocket.connect('ws://127.0.0.1:$port');
+
+      ws.add('!copy');
+
+      final received = <String>[];
+      var collecting = false;
+      await for (final message in ws) {
+        final s = message as String;
+        if (s.contains('--- BEGIN LOG COPY ---')) {
+          collecting = true;
+        }
+        if (collecting) {
+          received.add(s);
+        }
+        if (s.contains('--- END LOG COPY ---')) break;
+      }
+
+      await ws.close();
+
+      expect(
+        received.first,
+        contains('--- BEGIN LOG COPY ---'),
+      );
+      expect(received.any((s) => s.contains('copy target message')), isTrue);
+      expect(received.last, contains('--- END LOG COPY ---'));
+    });
+
+    test('!help command via WebSocket shows available commands', () async {
+      await DiqitLogger.initialize(
+        LoggerConfig.development().copyWith(
+          enableNetworkLogging: true,
+          networkPort: 0,
+        ),
+      );
+
+      final port = DiqitLogger.root.networkOutput!.actualPort;
+      final ws = await WebSocket.connect('ws://127.0.0.1:$port');
+
+      ws.add('!help');
+
+      final received = <String>[];
+      await for (final message in ws) {
+        final s = message as String;
+        if (s.startsWith('!')) {
+          received.add(s);
+          if (received.length >= 3) break;
+        }
+      }
+
+      await ws.close();
+
+      expect(received.length, equals(3));
+      expect(received[0], contains('!clear'));
+      expect(received[1], contains('!copy'));
+      expect(received[2], contains('!help'));
+    });
   });
 }

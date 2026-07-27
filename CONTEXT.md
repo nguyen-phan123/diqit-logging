@@ -45,5 +45,17 @@ An in-memory rolling buffer of formatted log events maintained for real-time ins
 _Avoid_: Log cache, Memory store, Event queue
 
 **NetworkOutput**:
-A `LogOutput` implementation that starts an internal WebSocket server on a configurable port, streaming formatted log lines to any connected client. On connect, dumps the full Log History (up to 1000 events) then streams new events live. Designed for remote debugging — a developer connects with `websocat ws://<device-ip>:9229` to observe logs in real time without physical device access. Enabled via `LoggerConfig.enableNetworkLogging`.
+A bi-directional `LogOutput` implementation that starts an internal WebSocket server on a configurable port, streaming formatted log lines to connected clients and accepting Log Commands from them. On connect, dumps the full Log History (up to 1000 events) then streams new events live. Designed for remote debugging — a developer connects with `websocat ws://<device-ip>:9229` to observe logs in real time without physical device access. Enabled via `LoggerConfig.enableNetworkLogging`.
 _Avoid_: WebSocket output, Remote logger, Socket stream
+
+**Log Command**:
+A plain-text directive sent from a WebSocket CLI client to NetworkOutput requesting a server-side action. Recognized by a `!` prefix (e.g. `!clear`, `!copy`, `!help`). Processed inline alongside log streaming on the same socket connection — no separate control channel needed.
+_Avoid_: WebSocket command, Control message, Remote instruction
+
+**Clear (Log History)**:
+The action of resetting the in-memory Log History buffer to empty, discarding all buffered events. A global operation — all connected clients see the buffer drain on next status dump. Triggered via the `!clear` Log Command.
+_Avoid_: Flush buffer, Reset history, Purge logs
+
+**Copy (Export to Client)**:
+The action of sending a formatted text dump of the current Log History to the requesting WebSocket client, delimited with markers so the developer can capture it from their terminal and paste into external tools. Triggered via the `!copy` Log Command. Not an OS clipboard operation — the server emits the text; the client captures it.
+_Avoid_: Clipboard, Paste buffer, Snapshot

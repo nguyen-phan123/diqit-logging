@@ -10,6 +10,7 @@ class NetworkOutput extends LogOutput {
   HttpServer? _server;
   final List<WebSocket> _clients = [];
   List<OutputEvent> Function()? _bufferGetter;
+  void Function()? _onClear;
   RawDatagramSocket? _mdnsSocket;
   String? _hostname;
 
@@ -19,8 +20,12 @@ class NetworkOutput extends LogOutput {
 
   bool get isRunning => _server != null;
 
-  Future<void> start({List<OutputEvent> Function()? bufferGetter}) async {
+  Future<void> start({
+    List<OutputEvent> Function()? bufferGetter,
+    void Function()? onClear,
+  }) async {
     _bufferGetter = bufferGetter;
+    _onClear = onClear;
     _hostname = Platform.localHostname;
 
     _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
@@ -57,7 +62,52 @@ class NetworkOutput extends LogOutput {
       }
     }
 
+    ws.listen(
+      (message) {
+        if (message is String) {
+          _handleCommand(ws, message.trim());
+        }
+      },
+      onError: (_) => _clients.remove(ws),
+    );
+
     ws.done.then((_) => _clients.remove(ws));
+  }
+
+  void _handleCommand(WebSocket ws, String message) {
+    if (!message.startsWith('!')) return;
+
+    switch (message) {
+      case '!clear':
+        _onClear?.call();
+        _sendLine(ws, '!OK Buffer cleared');
+        break;
+      case '!copy':
+        _sendCopy(ws);
+        break;
+      case '!help':
+        _sendHelp(ws);
+        break;
+    }
+  }
+
+  void _sendCopy(WebSocket ws) {
+    final buffer = _bufferGetter?.call();
+    _sendLine(ws, '--- BEGIN LOG COPY ---');
+    if (buffer != null) {
+      for (final event in buffer) {
+        for (final line in event.lines) {
+          _sendLine(ws, line);
+        }
+      }
+    }
+    _sendLine(ws, '--- END LOG COPY ---');
+  }
+
+  void _sendHelp(WebSocket ws) {
+    _sendLine(ws, '!clear — Clear the log history buffer');
+    _sendLine(ws, '!copy  — Export all buffered logs as text');
+    _sendLine(ws, '!help  — Show this help');
   }
 
   void _sendLine(WebSocket ws, String line) {
