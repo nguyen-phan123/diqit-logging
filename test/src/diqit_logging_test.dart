@@ -127,5 +127,49 @@ void main() {
         expect(DiqitLogger.fatal, isNotNull);
       });
     });
+
+    group('Instance Shortcuts with Parameters', () {
+      setUp(() async {
+        await DiqitLogger.initialize(LoggerConfig.development());
+      });
+
+      test('instance.i() with data parameter', () {
+        final logger = DiqitLogger.root.createChild('kds');
+        logger.i('message with data', data: {'key': 'value'});
+        final lines = DiqitLogger.getLogHistory().last.lines;
+        expect(lines.first, contains('message with data'));
+      });
+
+      test('instance.i() with tag parameter', () {
+        final logger = DiqitLogger.root.createChild('kds');
+        logger.i('message with tag', tag: LogTag.custom('order'));
+        final lines = DiqitLogger.getLogHistory().last.lines;
+        expect(lines.first, contains('message with tag'));
+      });
+
+      test('instance.i() with context parameter', () {
+        final logger = DiqitLogger.root.createChild('kds');
+        logger.i('message with context', context: {'userId': 123});
+        final lines = DiqitLogger.getLogHistory().last.lines;
+        expect(lines.first, contains('message with context'));
+      });
+
+      test('nested child logger preserves hierarchy', () {
+        final parent = DiqitLogger.root.createChild('kds');
+        final child = parent.createChild('order_grid');
+        child.i('nested message');
+        final lines = DiqitLogger.getLogHistory().last.lines;
+        expect(lines.first, contains('nested message'));
+      });
+
+      test('instance.e() with error and stacktrace', () {
+        final logger = DiqitLogger.root.createChild('kds');
+        final error = Exception('test error');
+        final stack = StackTrace.current;
+        logger.e('error with stack', error: error, stackTrace: stack);
+        final lines = DiqitLogger.getLogHistory().last.lines;
+        expect(lines.first, contains('error with stack'));
+      });
+    });
   });
 }
