@@ -610,7 +610,7 @@ class DiqitLogger {
     }
   }
 
-  @Deprecated('Use root.log(Level.level, msg, shorthand: true) instead')
+  /// Canonical static shortcut for trace-level logging.
   static void t(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, TraceId? traceId,
@@ -618,7 +618,7 @@ class DiqitLogger {
   }) => root.log(Level.trace, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use root.log(Level.trace, msg, shorthand: false) instead')
+  @Deprecated('Use DiqitLogger.t() instead. Will be removed in v2.0.0')
   static void trace(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, int? countMethod,
@@ -627,7 +627,7 @@ class DiqitLogger {
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use root.log(Level.debug, msg, shorthand: true) instead')
+  /// Canonical static shortcut for debug-level logging.
   static void d(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, TraceId? traceId,
@@ -635,7 +635,7 @@ class DiqitLogger {
   }) => root.log(Level.debug, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use root.log(Level.debug, msg, shorthand: false) instead')
+  @Deprecated('Use DiqitLogger.d() instead. Will be removed in v2.0.0')
   static void debug(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, int? countMethod,
@@ -644,7 +644,7 @@ class DiqitLogger {
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use root.log(Level.info, msg, shorthand: true) instead')
+  /// Canonical static shortcut for info-level logging.
   static void i(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, TraceId? traceId,
@@ -652,7 +652,7 @@ class DiqitLogger {
   }) => root.log(Level.info, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use root.log(Level.info, msg, shorthand: false) instead')
+  @Deprecated('Use DiqitLogger.i() instead. Will be removed in v2.0.0')
   static void info(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, int? countMethod,
@@ -661,7 +661,7 @@ class DiqitLogger {
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use root.log(Level.warning, msg, shorthand: true) instead')
+  /// Canonical static shortcut for warning-level logging.
   static void w(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, TraceId? traceId,
@@ -669,7 +669,7 @@ class DiqitLogger {
   }) => root.log(Level.warning, message, data: data, tag: tag,
       traceId: traceId, context: context);
 
-  @Deprecated('Use root.log(Level.warning, msg, shorthand: false) instead')
+  @Deprecated('Use DiqitLogger.w() instead. Will be removed in v2.0.0')
   static void warning(String message, {
     dynamic data, LogTag tag = LogTag.none,
     LogPrinter? printer, int? countMethod,
@@ -678,7 +678,7 @@ class DiqitLogger {
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use root.log(Level.error, msg, shorthand: true) instead')
+  /// Canonical static shortcut for error-level logging.
   static void e(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
@@ -688,7 +688,7 @@ class DiqitLogger {
       error: error, stackTrace: stackTrace,
       traceId: traceId, context: context);
 
-  @Deprecated('Use root.log(Level.error, msg, shorthand: false) instead')
+  @Deprecated('Use DiqitLogger.e() instead. Will be removed in v2.0.0')
   static void error(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
@@ -699,7 +699,7 @@ class DiqitLogger {
       traceId: traceId, context: context, shorthand: false,
       countMethod: countMethod);
 
-  @Deprecated('Use root.log(Level.fatal, msg, shorthand: true) instead')
+  /// Canonical static shortcut for fatal-level logging.
   static void ft(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
@@ -709,7 +709,7 @@ class DiqitLogger {
       error: error, stackTrace: stackTrace,
       traceId: traceId, context: context);
 
-  @Deprecated('Use root.log(Level.fatal, msg, shorthand: false) instead')
+  @Deprecated('Use DiqitLogger.ft() instead. Will be removed in v2.0.0')
   static void fatal(String message, {
     dynamic data, LogTag tag = LogTag.none,
     dynamic error, StackTrace? stackTrace,
