@@ -86,7 +86,7 @@ class DLogMessage {
         final loggableMap = data.toLoggableMap();
         return _formatLoggableMap(loggableMap);
       } catch (e) {
-        return ' [Loggable formatting error: $e]';
+        return '\n[Loggable formatting error: $e]';
       }
     }
 
@@ -94,7 +94,7 @@ class DLogMessage {
     if (registry != null && data is Object) {
       final converted = registry.convert(data);
       if (converted != null) {
-        return ' "$converted"';
+        return '\n"$converted"';
       }
     }
 
@@ -104,16 +104,16 @@ class DLogMessage {
       final jsonString = encoder.convert(
         data is String ? data : _toJsonSafe(data),
       );
-      return ' {"data": $jsonString}';
+      return '\n{"data": $jsonString}';
     } catch (_) {
-      return ' {"data": "$data"}';
+      return '\n{"data": "$data"}';
     }
   }
 
   static String _formatLoggableMap(Map<String, dynamic> map) {
     if (map.isEmpty) return ' {}';
 
-    final buffer = StringBuffer(' {\n');
+    final buffer = StringBuffer('\n{\n');
     _writeJsonEntries(buffer, map, 2);
     buffer.write('}');
     return buffer.toString();
