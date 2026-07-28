@@ -45,11 +45,11 @@ An in-memory rolling buffer of formatted log events maintained for real-time ins
 _Avoid_: Log cache, Memory store, Event queue
 
 **NetworkOutput**:
-A bi-directional `LogOutput` implementation that starts an internal WebSocket server on a configurable port, streaming formatted log lines to connected clients and accepting Log Commands from them. On connect, dumps the full Log History (up to 1000 events) then streams new events live. Designed for remote debugging — a developer connects with `websocat ws://<device-ip>:9229` to observe logs in real time without physical device access. Enabled via `LoggerConfig.enableNetworkLogging`.
+A bi-directional `LogOutput` implementation that starts an internal WebSocket server on a configurable port, streaming formatted log lines to connected clients and accepting Log Commands from them. On connect, dumps the full Log History (up to 1000 events) then streams new events live. Designed for remote debugging — a developer connects with the `diqit-socket-logger` TUI or `websocat ws://<device-ip>:9229` to observe logs in real time without physical device access. Server-side only; enabled via `LoggerConfig.enableNetworkLogging`.
 _Avoid_: WebSocket output, Remote logger, Socket stream
 
 **Log Command**:
-A plain-text directive sent from a WebSocket CLI client to NetworkOutput requesting a server-side action. Recognized by a `!` prefix (e.g. `!clear`, `!copy`, `!help`). Processed inline alongside log streaming on the same socket connection — no separate control channel needed.
+A plain-text directive sent from a WebSocket CLI client (e.g. `diqit-socket-logger`) to NetworkOutput requesting a server-side action. Recognized by a `!` prefix (e.g. `!clear`, `!copy`, `!help`). Processed inline alongside log streaming on the same socket connection — no separate control channel needed.
 _Avoid_: WebSocket command, Control message, Remote instruction
 
 **Clear (Log History)**:

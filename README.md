@@ -183,6 +183,22 @@ Use `LogTag` to categorize your logs. Available tags:
 
 ---
 
+## 🔍 Viewing Logs
+
+For remote log viewing, use the **[diqit-socket-logger](../diqit-socket-logger)** package — a standalone terminal UI (TUI) that connects to the NetworkOutput WebSocket server for real-time log streaming, filtering, and interaction.
+
+```bash
+# Auto-discover devices via mDNS
+melos run socket-logger
+
+# Connect directly to a device
+melos run socket-logger -- 192.168.1.100:9229
+```
+
+See [diqit-socket-logger README](../diqit-socket-logger/README.md) for keybindings and command reference.
+
+---
+
 ## 📄 License
 
 MIT License. See [LICENSE](LICENSE) for details.
