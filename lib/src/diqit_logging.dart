@@ -149,6 +149,10 @@ class DiqitLogger {
   /// Dynamically enables or disables console logging.
   ///
   /// Useful for toggling log output at runtime without re-initializing.
+  @Deprecated(
+    'Use LoggerConfig.copyWith(enableConsoleLogging:) + updateConfig(). '
+    'Will be removed in v2.0.0',
+  )
   static void setConsoleLogging(bool enabled) =>
       root._setConsoleLoggingInternal(enabled);
 
@@ -228,6 +232,7 @@ class DiqitLogger {
   /// Unregister a type converter.
   ///
   /// Returns `true` if a converter was removed, `false` otherwise.
+  @Deprecated('Use registerConverter() to override. Will be removed in v2.0.0')
   static bool unregisterConverter<T>() {
     return root._typeConverterRegistry.unregister<T>();
   }
@@ -244,11 +249,19 @@ class DiqitLogger {
   ///
   /// Scoped to this instance — does NOT affect root or other instances.
   /// Use the static [registerConverter] for root-wide converters.
+  @Deprecated(
+    'Use static registerConverter() instead. '
+    'Will be removed in v2.0.0',
+  )
   void addConverter<T>(TypeConverter<T> converter) {
     _typeConverterRegistry.register<T>(converter);
   }
 
   /// Unregister a type converter on this logger instance.
+  @Deprecated(
+    'Use static registerConverter() to override. '
+    'Will be removed in v2.0.0',
+  )
   bool removeConverter<T>() {
     return _typeConverterRegistry.unregister<T>();
   }
