@@ -4,27 +4,16 @@ import 'package:logger/logger.dart';
 /// Custom PrettyPrinter with preset configurations for common use cases.
 ///
 /// Provides factory constructors for quick setup:
-/// - [DPrettyPrinter.trace] - Full stack trace, for debugging complex flows.
-/// - [DPrettyPrinter.compact] - Emoji + message, no box, for readable logs.
-/// - [DPrettyPrinter.compactSymbols] - Compact with symbol-based emojis
-///   (smaller).
-/// - [DPrettyPrinter.compactMixed] - Compact with mixed emojis (balanced).
+/// - [DPrettyPrinter.trace] - Detailed printer, for debugging complex flows.
 /// - [DPrettyPrinter.minimal] - Bare text only, for production/clean output.
-/// - [DPrettyPrinter.minimalAligned] - Minimal with padding for alignment.
 class DPrettyPrinter {
   // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
 
   /// Compact emoji set using simple symbols (1 char each, minimal width).
-  ///
-  /// Best for: Terminal alignment, minimal visual noise.
-  /// - trace: · (middle dot)
-  /// - debug: • (bullet)
-  /// - info: ℹ (information symbol)
-  /// - warning: ⚠ (warning sign)
-  /// - error: ✖ (heavy multiplication X)
-  /// - fatal: ☠ (skull and crossbones)
+  @Deprecated(
+      'Use DPrettyPrinter.mixedEmojis instead. Will be removed in v2.0.0.')
   static const Map<Level, String> symbolsEmojis = {
     Level.trace: '·',
     Level.debug: '•',
@@ -76,30 +65,24 @@ class DPrettyPrinter {
   }) =>
       DShorthandPrinter();
 
+  @Deprecated(
+      'Use DPrettyPrinter.minimal() or DPrettyPrinter.trace() instead. Will be removed in v2.0.0.')
   static LogPrinter compact({Map<Level, String>? levelEmojis}) =>
       DShorthandPrinter();
 
-  static LogPrinter compactSymbols() =>
-      DShorthandPrinter();
+  @Deprecated(
+      'Use DPrettyPrinter.minimal() or DPrettyPrinter.trace() instead. Will be removed in v2.0.0.')
+  static LogPrinter compactSymbols() => DShorthandPrinter();
 
-  static LogPrinter compactMixed() =>
-      DShorthandPrinter();
+  @Deprecated(
+      'Use DPrettyPrinter.minimal() or DPrettyPrinter.trace() instead. Will be removed in v2.0.0.')
+  static LogPrinter compactMixed() => DShorthandPrinter();
 
-  static LogPrinter minimal() =>
-      DShorthandPrinter(enableColors: false);
+  static LogPrinter minimal() => DShorthandPrinter(enableColors: false);
 
   /// Minimal printer with alignment padding.
-  ///
-  /// Use when: mixing minimal logs with compact logs (with emojis).
-  /// Output: Plain text with leading spaces to align with emoji logs.
-  ///
-  /// Example:
-  /// ```dart
-  /// // Compact log
-  /// 💡 User logged in
-  /// // MinimalAligned log
-  ///    Session started  // 3 spaces padding
-  /// ```
+  @Deprecated(
+      'Use DPrettyPrinter.minimal() or DPrettyPrinter.trace() instead. Will be removed in v2.0.0.')
   static LogPrinter minimalAligned({int paddingSize = 3}) {
     final inner = DPrettyPrinter.minimal();
     return _PaddingPrinter(inner, paddingSize: paddingSize);
