@@ -18,7 +18,7 @@ import 'package:logger/logger.dart';
 /// - **Singleton**: Global access via static methods.
 /// - **Tag Support**: Categorize logs with [LogTag].
 /// - **Dual Printers**: Short methods (e.g., [t], [d]) use a minimal printer;
-///   full methods (e.g., [trace], [debug]) use a detailed trace printer.
+///   full methods use a detailed trace printer.
 /// - **File Logging**: Optional file logging configured via [initialize].
 /// - **Trace Propagation**: Zone-based trace ID inheritance via [runTraced].
 ///
@@ -162,6 +162,7 @@ class DiqitLogger {
   /// Exports the recent logs as a formatted string.
   ///
   /// [lastN] - Optional: Limit to the last N lines.
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static String exportLogs({int? lastN}) {
     var entries = _globalBuffer.buffer.toList();
     if (lastN != null && entries.length > lastN) {
@@ -311,6 +312,7 @@ class DiqitLogger {
   }
 
   /// Returns log history events specifically matching [traceId].
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistoryForTrace(String traceId) {
     final searchTag = '[$traceId]';
     return _globalBuffer.buffer.where((event) {
@@ -319,6 +321,7 @@ class DiqitLogger {
   }
 
   /// Exports formatted log entries matching [traceId].
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static String exportLogsForTrace(String traceId, {int? lastN}) {
     final searchTag = '[$traceId]';
     var entries = _globalBuffer.buffer.where((event) {
@@ -353,6 +356,7 @@ class DiqitLogger {
   /// ```dart
   /// final logs = DiqitLogger.getLogHistoryByContext('order_id', 'ORD-001');
   /// ```
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistoryByContext(
     String key,
     dynamic value,
@@ -374,6 +378,7 @@ class DiqitLogger {
   /// ```dart
   /// final gridLogs = DiqitLogger.getLogHistoryByPath('kds/order_grid');
   /// ```
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistoryByPath(String path) {
     final searchTag = '[$path]';
     return _globalBuffer.buffer.where((event) {
