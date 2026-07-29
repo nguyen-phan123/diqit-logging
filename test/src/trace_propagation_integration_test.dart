@@ -23,9 +23,13 @@ void main() {
       final logLines = logs.expand((e) => e.lines).toList();
 
       // Find lines containing our messages
-      final step1Lines = logLines.where((l) => l.contains('Step 1: Validate credentials')).toList();
-      final step2Lines = logLines.where((l) => l.contains('Step 2: Create session')).toList();
-      final step3Lines = logLines.where((l) => l.contains('Step 3: Login complete')).toList();
+      final step1Lines = logLines
+          .where((l) => l.contains('Step 1: Validate credentials'))
+          .toList();
+      final step2Lines =
+          logLines.where((l) => l.contains('Step 2: Create session')).toList();
+      final step3Lines =
+          logLines.where((l) => l.contains('Step 3: Login complete')).toList();
 
       expect(step1Lines.isNotEmpty, true);
       expect(step2Lines.isNotEmpty, true);
@@ -55,8 +59,10 @@ void main() {
       final logs = DiqitLogger.getLogHistory();
       final logLines = logs.expand((e) => e.lines).toList();
 
-      final req1Lines = logLines.where((l) => l.contains('Request 1 started')).toList();
-      final req2Lines = logLines.where((l) => l.contains('Request 2 started')).toList();
+      final req1Lines =
+          logLines.where((l) => l.contains('Request 1 started')).toList();
+      final req2Lines =
+          logLines.where((l) => l.contains('Request 2 started')).toList();
 
       expect(req1Lines.isNotEmpty, true);
       expect(req2Lines.isNotEmpty, true);
@@ -91,9 +97,12 @@ void main() {
       final logs = DiqitLogger.getLogHistory();
       final logLines = logs.expand((e) => e.lines).toList();
 
-      final outerLines = logLines.where((l) => l.contains('Outer scope')).toList();
-      final innerLines = logLines.where((l) => l.contains('Inner scope')).toList();
-      final backLines = logLines.where((l) => l.contains('Back to outer')).toList();
+      final outerLines =
+          logLines.where((l) => l.contains('Outer scope')).toList();
+      final innerLines =
+          logLines.where((l) => l.contains('Inner scope')).toList();
+      final backLines =
+          logLines.where((l) => l.contains('Back to outer')).toList();
 
       expect(outerLines.any((l) => l.contains('[#outer-1]')), true);
       expect(innerLines.any((l) => l.contains('[#outer-1 > #inner-2]')), true);
@@ -105,7 +114,8 @@ void main() {
         TraceId.manual('zone', 100),
         () async {
           DiqitLogger.i('Uses zone trace');
-          DiqitLogger.i('Override with explicit', traceId: TraceId.manual('explicit', 200));
+          DiqitLogger.i('Override with explicit',
+              traceId: TraceId.manual('explicit', 200));
           DiqitLogger.i('Back to zone trace');
         },
       );
@@ -113,9 +123,12 @@ void main() {
       final logs = DiqitLogger.getLogHistory();
       final logLines = logs.expand((e) => e.lines).toList();
 
-      final zoneLine1 = logLines.where((l) => l.contains('Uses zone trace')).toList();
-      final explicitLine = logLines.where((l) => l.contains('Override with explicit')).toList();
-      final zoneLine2 = logLines.where((l) => l.contains('Back to zone trace')).toList();
+      final zoneLine1 =
+          logLines.where((l) => l.contains('Uses zone trace')).toList();
+      final explicitLine =
+          logLines.where((l) => l.contains('Override with explicit')).toList();
+      final zoneLine2 =
+          logLines.where((l) => l.contains('Back to zone trace')).toList();
 
       expect(zoneLine1.any((l) => l.contains('[#zone-100]')), true);
       expect(explicitLine.any((l) => l.contains('[#explicit-200]')), true);
@@ -134,8 +147,10 @@ void main() {
       final logs = DiqitLogger.getLogHistory();
       final logLines = logs.expand((e) => e.lines).toList();
 
-      final step1Lines = logLines.where((l) => l.contains('Sync step 1')).toList();
-      final step2Lines = logLines.where((l) => l.contains('Sync step 2')).toList();
+      final step1Lines =
+          logLines.where((l) => l.contains('Sync step 1')).toList();
+      final step2Lines =
+          logLines.where((l) => l.contains('Sync step 2')).toList();
 
       expect(step1Lines.any((l) => l.contains('[#sync-1]')), true);
       expect(step2Lines.any((l) => l.contains('[#sync-1]')), true);
@@ -152,7 +167,8 @@ void main() {
       final logs = DiqitLogger.getLogHistory();
       final logLines = logs.expand((e) => e.lines).toList();
 
-      final orderLines = logLines.where((l) => l.contains('Processing order')).toList();
+      final orderLines =
+          logLines.where((l) => l.contains('Processing order')).toList();
       expect(orderLines.any((l) => l.contains('[#order-12345.retry]')), true);
     });
 
@@ -166,14 +182,16 @@ void main() {
 
           // Simulate socket emit
           await Future<void>.delayed(Duration(milliseconds: 5));
-          DiqitLogger.d('Socket: emit bump_order', tag: LogTag.custom('socket'));
+          DiqitLogger.d('Socket: emit bump_order',
+              tag: LogTag.custom('socket'));
 
           // Simulate API call
           await Future<void>.delayed(Duration(milliseconds: 10));
           DiqitLogger.d('API: POST /orders/bump', tag: LogTag.custom('api'));
 
           // Simulate UI update
-          DiqitLogger.i('UI: Order removed from grid', tag: LogTag.custom('ui'));
+          DiqitLogger.i('UI: Order removed from grid',
+              tag: LogTag.custom('ui'));
         },
         context: {'order_id': 'ORD-001'},
       );
@@ -182,12 +200,13 @@ void main() {
       final logLines = logs.expand((e) => e.lines).toList();
 
       // All logs should have same trace ID
-      final bumpLines = logLines.where((l) =>
-        l.contains('Bump initiated') ||
-        l.contains('Socket: emit bump_order') ||
-        l.contains('API: POST /orders/bump') ||
-        l.contains('UI: Order removed from grid')
-      ).toList();
+      final bumpLines = logLines
+          .where((l) =>
+              l.contains('Bump initiated') ||
+              l.contains('Socket: emit bump_order') ||
+              l.contains('API: POST /orders/bump') ||
+              l.contains('UI: Order removed from grid'))
+          .toList();
 
       expect(bumpLines.length >= 4, true);
       for (final line in bumpLines) {
@@ -325,7 +344,8 @@ void main() {
       await DiqitLogger.runTraced(
         TraceId.manual('bump', 1),
         () async {
-          kdsLogger.log(Level.info, 'child_path_trace_ctx_test', tag: LogTag.custom('kds.bump'));
+          kdsLogger.log(Level.info, 'child_path_trace_ctx_test',
+              tag: LogTag.custom('kds.bump'));
         },
         context: {'order_id': 'ORD-001'},
       );
@@ -351,6 +371,7 @@ String _extractTraceId(String logLine) {
 
   // Match trace ID pattern: [#word-number], [#number], or [#word-number > #word-number]
   // Skip timestamp brackets like [11:46:22] by excluding colons
-  final match = RegExp(r'\[(#?[a-z0-9][\w\-\s>\.]*)\]', caseSensitive: false).firstMatch(stripped);
+  final match = RegExp(r'\[(#?[a-z0-9][\w\-\s>\.]*)\]', caseSensitive: false)
+      .firstMatch(stripped);
   return match?.group(1) ?? '';
 }

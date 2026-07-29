@@ -243,9 +243,7 @@ class ZoneTrace {
     Map<String, dynamic> payload, {
     TraceId? traceId,
   }) {
-    final effectiveTrace = traceId ??
-        currentTrace() ??
-        TraceId.global();
+    final effectiveTrace = traceId ?? currentTrace() ?? TraceId.global();
 
     final result = Map<String, dynamic>.from(payload);
     final meta = result[metaKey] is Map

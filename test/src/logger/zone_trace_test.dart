@@ -92,7 +92,8 @@ void main() {
 
         await ZoneTrace.runTraced(trace, () async {
           final list = ZoneTrace.currentTraceList();
-          expect(() => list.add(TraceId.manual('evil', 2)), throwsUnsupportedError);
+          expect(() => list.add(TraceId.manual('evil', 2)),
+              throwsUnsupportedError);
         });
       });
     });
