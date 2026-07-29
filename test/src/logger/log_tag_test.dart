@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:test/test.dart';
 
