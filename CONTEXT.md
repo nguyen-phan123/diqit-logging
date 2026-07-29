@@ -13,11 +13,12 @@ A log line answers three orthogonal questions — **where**, **which flow**, and
 ## Language
 
 **DiqitLogger**:
-The central logging entrypoint that unifies console printing, file logging, and trace correlation across the application lifecycle.
+The central logging entrypoint that unifies console printing, file logging, and trace correlation. Acts as a static facade delegating to the single source of truth `root` instance. Supports lightweight scoped/child loggers (`DiqitLogger('namespace')` or `DiqitLogger.scoped('namespace')`) that carry a path header while dynamically delegating configuration, type converters, and output sinks to `root`.
 _Avoid_: Logger instance, Log manager, Print service
 
+
 **LoggerConfig**:
-The configuration blueprint governing log levels, tag filters, file output paths, and visual formatting rules for the logger.
+The configuration blueprint governing log levels, tag filters, file output paths, and visual formatting rules for the logger. Uses `appName` as the canonical application identity (deprecates `prefixMessage`).
 _Avoid_: Log options, Printer settings, Logger params
 
 **LogTag**:
