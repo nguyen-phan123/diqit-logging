@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use_from_same_package
 import 'dart:async';
 
 import 'package:diqit_logging/diqit_logging.dart';
@@ -63,7 +64,8 @@ void main() {
       expect(t1.toString(), isNot(equals(t2.toString())));
     });
 
-    test('intercepts uncaught errors with trace context via ZoneTrace', () async {
+    test('intercepts uncaught errors with trace context via ZoneTrace',
+        () async {
       final trace = TraceId.manual('error', 500);
       Object? capturedError;
       StackTrace? capturedStack;

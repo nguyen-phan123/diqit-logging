@@ -1,8 +1,7 @@
-// ignore_for_file: prefer_const_constructors
+// ignore_for_file: prefer_const_constructors, deprecated_member_use_from_same_package
 import 'dart:io';
 
 import 'package:diqit_logging/diqit_logging.dart';
-import 'package:logger/logger.dart';
 import 'package:test/test.dart';
 
 LogEvent _makeEvent(Level level, String msg) => LogEvent(level, msg);
@@ -211,8 +210,7 @@ void main() {
       expect(after, isEmpty);
     });
 
-    test('!clear command via WebSocket clears buffer and sends OK',
-        () async {
+    test('!clear command via WebSocket clears buffer and sends OK', () async {
       await DiqitLogger.initialize(
         LoggerConfig.development().copyWith(
           enableNetworkLogging: true,
@@ -242,8 +240,7 @@ void main() {
       expect(DiqitLogger.getLogHistory(), isEmpty);
     });
 
-    test('!copy command via WebSocket sends formatted buffer dump',
-        () async {
+    test('!copy command via WebSocket sends formatted buffer dump', () async {
       await DiqitLogger.initialize(
         LoggerConfig.development().copyWith(
           enableNetworkLogging: true,

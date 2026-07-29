@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use_from_same_package
 import 'package:diqit_logging/diqit_logging.dart';
 import 'package:test/test.dart';
 
@@ -17,17 +18,16 @@ void main() {
       final lastLogLines = history.last.lines;
       final fullLog = lastLogLines.join('\n');
 
-      final occurrences = '#createOrder-1784867983330'.allMatches(fullLog).length;
+      final occurrences =
+          '#createOrder-1784867983330'.allMatches(fullLog).length;
       expect(
         occurrences,
         equals(1),
-        reason:
-            'traceId appeared $occurrences times in log: "$fullLog"',
+        reason: 'traceId appeared $occurrences times in log: "$fullLog"',
       );
     });
 
-    test('traceId should appear once in full method when in zone',
-        () async {
+    test('traceId should appear once in full method when in zone', () async {
       await DiqitLogger.initialize(LoggerConfig.development());
 
       final trace = TraceId.manual('createOrder', 1784867983330);
@@ -41,12 +41,12 @@ void main() {
       final lastLogLines = history.last.lines;
       final fullLog = lastLogLines.join('\n');
 
-      final occurrences = '#createOrder-1784867983330'.allMatches(fullLog).length;
+      final occurrences =
+          '#createOrder-1784867983330'.allMatches(fullLog).length;
       expect(
         occurrences,
         equals(1),
-        reason:
-            'traceId appeared $occurrences times in log: "$fullLog"',
+        reason: 'traceId appeared $occurrences times in log: "$fullLog"',
       );
     });
 
