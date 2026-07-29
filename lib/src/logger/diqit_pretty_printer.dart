@@ -5,10 +5,6 @@ import 'package:logger/logger.dart';
 ///
 /// Provides factory constructors for quick setup:
 /// - [DPrettyPrinter.trace] - Full stack trace, for debugging complex flows.
-/// - [DPrettyPrinter.compact] - Emoji + message, no box, for readable logs.
-/// - [DPrettyPrinter.compactSymbols] - Compact with symbol-based emojis
-///   (smaller).
-/// - [DPrettyPrinter.compactMixed] - Compact with mixed emojis (balanced).
 /// - [DPrettyPrinter.minimal] - Bare text only, for production/clean output.
 /// - [DPrettyPrinter.minimalAligned] - Minimal with padding for alignment.
 class DPrettyPrinter {
@@ -76,17 +72,17 @@ class DPrettyPrinter {
   }) =>
       DShorthandPrinter();
 
+  @Deprecated('Use DShorthandPrinter() directly. Will be removed in v2.0.0')
   static LogPrinter compact({Map<Level, String>? levelEmojis}) =>
       DShorthandPrinter();
 
-  static LogPrinter compactSymbols() =>
-      DShorthandPrinter();
+  @Deprecated('Use DShorthandPrinter() directly. Will be removed in v2.0.0')
+  static LogPrinter compactSymbols() => DShorthandPrinter();
 
-  static LogPrinter compactMixed() =>
-      DShorthandPrinter();
+  @Deprecated('Use DShorthandPrinter() directly. Will be removed in v2.0.0')
+  static LogPrinter compactMixed() => DShorthandPrinter();
 
-  static LogPrinter minimal() =>
-      DShorthandPrinter(enableColors: false);
+  static LogPrinter minimal() => DShorthandPrinter(enableColors: false);
 
   /// Minimal printer with alignment padding.
   ///
