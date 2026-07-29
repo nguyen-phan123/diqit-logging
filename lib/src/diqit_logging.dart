@@ -160,6 +160,7 @@ class DiqitLogger {
   ///
   /// The buffer size is limited. Useful for viewing logs inside the app
   /// (e.g. debug page).
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistory() =>
       _globalBuffer.buffer.toList();
 
@@ -196,6 +197,7 @@ class DiqitLogger {
   /// ```dart
   /// DiqitLogger.clearLogHistory();
   /// ```
+  @Deprecated('Use NetworkOutput !clear command. Will be removed in v2.0.0')
   static void clearLogHistory() {
     root._clearLogHistoryInternal();
   }
@@ -739,6 +741,10 @@ class DiqitLogger {
       countMethod: countMethod);
 
   /// Logs a flow execution trace (uses debug level, function tag).
+  @Deprecated(
+    'Use runTraced() + DiqitLogger.d() for automatic trace propagation. '
+    'Will be removed in v2.0.0',
+  )
   static void flow({
     Map<String, dynamic>? args, DPrettyPrinter? printer,
     LogTag? tag, TraceId? traceId,
