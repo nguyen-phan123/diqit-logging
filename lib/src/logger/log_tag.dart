@@ -1,3 +1,9 @@
+/// Represents high-level architectural layers or major domain subsystems.
+///
+/// LogTag is used for coarse-grained log filtering across the system.
+/// For fine-grained component, widget, or file locality, use scoped child
+/// loggers via `logger.createChild('module/submodule')` instead of creating
+/// new LogTags.
 class LogTag {
   final String label;
 
@@ -15,7 +21,7 @@ class LogTag {
   static const LogTag database = LogTag('DB');
   static const LogTag mqtt = LogTag('MQTT');
 
-  // Features
+  // Features / Major Subsystems
   static const LogTag navigation = LogTag('NAV');
   static const LogTag event = LogTag('EVENT');
   static const LogTag sync = LogTag('SYNC');
@@ -42,6 +48,7 @@ class LogTag {
     payment,
     printer,
     mqtt,
+    kds,
   ];
 
   @override
