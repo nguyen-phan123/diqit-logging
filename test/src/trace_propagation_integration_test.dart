@@ -5,6 +5,7 @@ void main() {
   group('Trace Propagation Integration', () {
     setUp(() async {
       await DiqitLogger.initialize(LoggerConfig.development());
+      DiqitLogger.clearLogHistory();
     });
 
     test('manual trace propagates through async boundaries', () async {
@@ -356,22 +357,20 @@ void main() {
         (l) => l.contains('child_path_trace_ctx_test'),
         orElse: () => '',
       );
-      expect(bumpLine, contains('[kds.bump]'));
-      expect(bumpLine, contains('[kds]'));
+      expect(bumpLine, contains('[kds.bump/kds]'));
       expect(bumpLine, contains('[#bump-1]'));
       expect(bumpLine, contains('"order_id":"ORD-001"'));
     });
   });
 }
 
-/// Extract trace ID from log line (format: [trace-id])
+/// Extract trace ID from log line (format: [#trace-id])
 String _extractTraceId(String logLine) {
   // Strip ANSI color codes first
   final stripped = logLine.replaceAll(RegExp(r'\x1B\[[0-9;]*m'), '');
 
-  // Match trace ID pattern: [#word-number], [#number], or [#word-number > #word-number]
-  // Skip timestamp brackets like [11:46:22] by excluding colons
-  final match = RegExp(r'\[(#?[a-z0-9][\w\-\s>\.]*)\]', caseSensitive: false)
+  // Match trace ID pattern starting with #: [#word-number], [#number], or [#word-number > #word-number]
+  final match = RegExp(r'\[(#[a-z0-9][\w\-\s>\.]*)\]', caseSensitive: false)
       .firstMatch(stripped);
   return match?.group(1) ?? '';
 }

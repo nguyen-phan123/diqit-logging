@@ -122,10 +122,20 @@ class DShorthandPrinter extends LogPrinter {
     Level.fatal: '\x1B[38;5;199m', // magenta
   };
 
+  static const Map<Level, String> _levelLabels = {
+    Level.trace: 'T',
+    Level.debug: 'D',
+    Level.info: 'I',
+    Level.warning: 'W',
+    Level.error: 'E',
+    Level.fatal: 'F',
+  };
+
   static const String _resetColor = '\x1B[0m';
   static const String _timeColor = '\x1B[38;5;240m';
+  static const String _headerColor = '\x1B[38;5;34m'; // muted green
+  static const String _traceColor = '\x1B[38;5;220m'; // gold/yellow
 
-  static const _emojis = DPrettyPrinter.mixedEmojis;
   static bool get _isColorSupported => DPrettyPrinter.isColorSupported;
 
   @override
@@ -138,26 +148,40 @@ class DShorthandPrinter extends LogPrinter {
     final ms = time.millisecond.toString().padLeft(3, '0');
     final timeStr = '$h:$m:$s.$ms';
 
-    final emoji = _emojis[event.level] ?? '';
+    final label = _levelLabels[event.level] ?? 'I';
     final color = _levelColors[event.level] ?? '';
     final isColorEnabled = enableColors && _isColorSupported;
 
     final lines = messageStr.split('\n');
     final formattedLines = <String>[];
 
-    // 17 spaces to align with the message after "[HH:MM:SS.mmm] E "
-    const indent = '                 ';
+    // 19 spaces to align payload after "[HH:MM:SS.mmm] [X] "
+    const indent = '                   ';
     const dimColor = '\x1B[38;5;242m'; // medium grey for data payload
 
     for (var i = 0; i < lines.length; i++) {
       if (i == 0) {
         if (isColorEnabled) {
+          var coloredLine = lines[0];
+
+          // Color trace IDs [#trace-123] with gold/yellow
+          coloredLine = coloredLine.replaceAllMapped(
+            RegExp(r'(\[#[^\]]+\])'),
+            (m) => '$_traceColor${m[1]}$_resetColor',
+          );
+
+          // Color namespace headers [app/tag/path] with muted green
+          coloredLine = coloredLine.replaceAllMapped(
+            RegExp(r'(\[(?![#\d])[^\]]+\])'),
+            (m) => '$_headerColor${m[1]}$_resetColor',
+          );
+
           formattedLines.add(
-            '$emoji $_timeColor[$timeStr]$_resetColor '
-            '$color${lines[i]}$_resetColor',
+            '$_timeColor[$timeStr]$_resetColor $color[$label]$_resetColor '
+            '$coloredLine',
           );
         } else {
-          formattedLines.add('$emoji [$timeStr] ${lines[i]}');
+          formattedLines.add('[$timeStr] [$label] ${lines[i]}');
         }
       } else {
         // For Data payloads, dim the color so it doesn't clutter the console
