@@ -14,7 +14,6 @@ class DLogMessage {
   final Map<String, dynamic>? context;
   final String? path;
   final String? source;
-  final String prefix;
 
   const DLogMessage({
     required this.message,
@@ -25,29 +24,30 @@ class DLogMessage {
     this.context,
     this.path,
     this.source,
-    this.prefix = '',
   });
 
   @override
   String toString() {
     final buffer = StringBuffer();
+    final parts = <String>[];
 
-    if (prefix.isNotEmpty) {
-      buffer.write(prefix);
-    }
-
-    final decorations = <String>[];
     if (source != null && source!.isNotEmpty) {
-      decorations.add('[$source]');
+      final cleanSource = source!.startsWith('[') && source!.endsWith(']')
+          ? source!.substring(1, source!.length - 1)
+          : source!;
+      parts.add(cleanSource);
     }
+
     if (tag.label.isNotEmpty) {
-      decorations.add('[${tag.label}]');
+      parts.add(tag.label);
     }
+
     if (path != null && path!.isNotEmpty) {
-      decorations.add('[$path]');
+      parts.add(path!);
     }
-    if (decorations.isNotEmpty) {
-      buffer.write('${decorations.join(' ')} -> ');
+
+    if (parts.isNotEmpty) {
+      buffer.write('[${parts.join('/')}] ');
     }
 
     if (traceId != null) {
