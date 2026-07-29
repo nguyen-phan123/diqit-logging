@@ -17,17 +17,16 @@ void main() {
       final lastLogLines = history.last.lines;
       final fullLog = lastLogLines.join('\n');
 
-      final occurrences = '#createOrder-1784867983330'.allMatches(fullLog).length;
+      final occurrences =
+          '#createOrder-1784867983330'.allMatches(fullLog).length;
       expect(
         occurrences,
         equals(1),
-        reason:
-            'traceId appeared $occurrences times in log: "$fullLog"',
+        reason: 'traceId appeared $occurrences times in log: "$fullLog"',
       );
     });
 
-    test('traceId should appear once in full method when in zone',
-        () async {
+    test('traceId should appear once in full method when in zone', () async {
       await DiqitLogger.initialize(LoggerConfig.development());
 
       final trace = TraceId.manual('createOrder', 1784867983330);
@@ -41,12 +40,12 @@ void main() {
       final lastLogLines = history.last.lines;
       final fullLog = lastLogLines.join('\n');
 
-      final occurrences = '#createOrder-1784867983330'.allMatches(fullLog).length;
+      final occurrences =
+          '#createOrder-1784867983330'.allMatches(fullLog).length;
       expect(
         occurrences,
         equals(1),
-        reason:
-            'traceId appeared $occurrences times in log: "$fullLog"',
+        reason: 'traceId appeared $occurrences times in log: "$fullLog"',
       );
     });
 
@@ -67,6 +66,34 @@ void main() {
         isTrue,
         reason: 'Emoji should come before timestamp: "$firstLine"',
       );
+    });
+  });
+
+  group('DPrettyPrinter Factories', () {
+    test('minimal() returns printer without ANSI colors', () {
+      final printer = DPrettyPrinter.minimal();
+      expect(printer, isA<DShorthandPrinter>());
+      expect((printer as DShorthandPrinter).enableColors, isFalse);
+    });
+
+    test('trace() returns printer with ANSI colors enabled', () {
+      final printer = DPrettyPrinter.trace();
+      expect(printer, isA<DShorthandPrinter>());
+      expect((printer as DShorthandPrinter).enableColors, isTrue);
+    });
+
+    // ignore: deprecated_member_use_from_same_package
+    test('deprecated factory constructors return working printers', () {
+      // ignore: deprecated_member_use_from_same_package
+      expect(DPrettyPrinter.compact(), isA<DShorthandPrinter>());
+      // ignore: deprecated_member_use_from_same_package
+      expect(DPrettyPrinter.compactSymbols(), isA<DShorthandPrinter>());
+      // ignore: deprecated_member_use_from_same_package
+      expect(DPrettyPrinter.compactMixed(), isA<DShorthandPrinter>());
+      // ignore: deprecated_member_use_from_same_package
+      expect(DPrettyPrinter.minimalAligned(), isNotNull);
+      // ignore: deprecated_member_use_from_same_package
+      expect(DPrettyPrinter.symbolsEmojis, isNotEmpty);
     });
   });
 }
