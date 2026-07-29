@@ -18,7 +18,7 @@ import 'package:logger/logger.dart';
 /// - **Singleton**: Global access via static methods.
 /// - **Tag Support**: Categorize logs with [LogTag].
 /// - **Dual Printers**: Short methods (e.g., [t], [d]) use a minimal printer;
-///   full methods use a detailed trace printer.
+///   full methods (e.g., `trace`, `debug`) use a detailed trace printer.
 /// - **File Logging**: Optional file logging configured via [initialize].
 /// - **Trace Propagation**: Zone-based trace ID inheritance via [runTraced].
 ///
@@ -120,8 +120,7 @@ class DiqitLogger {
             ? _minimalPrinter
             : _tracePrinter;
     _log(level, message, tag, error, stackTrace,
-        data: data, printer: printer,
-        traceId: traceId, context: context);
+        data: data, printer: printer, traceId: traceId, context: context);
   }
 
   // * --- Static Log API (backward compat) ---
@@ -161,8 +160,7 @@ class DiqitLogger {
   /// The buffer size is limited. Useful for viewing logs inside the app
   /// (e.g. debug page).
   @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
-  static List<OutputEvent> getLogHistory() =>
-      _globalBuffer.buffer.toList();
+  static List<OutputEvent> getLogHistory() => _globalBuffer.buffer.toList();
 
   /// Exports the recent logs as a formatted string.
   ///
@@ -376,9 +374,7 @@ class DiqitLogger {
     String key,
     dynamic value,
   ) {
-    final searchPattern = value is String
-        ? '"$key":"$value"'
-        : '"$key":$value';
+    final searchPattern = value is String ? '"$key":"$value"' : '"$key":$value';
     return _globalBuffer.buffer.where((event) {
       return event.lines.any((line) => line.contains(searchPattern));
     }).toList();
@@ -631,114 +627,206 @@ class DiqitLogger {
   }
 
   /// Canonical static shortcut for trace-level logging.
-  static void t(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, TraceId? traceId,
+  static void t(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => root.log(Level.trace, message, data: data, tag: tag,
-      traceId: traceId, context: context);
+  }) =>
+      root.log(Level.trace, message,
+          data: data, tag: tag, traceId: traceId, context: context);
 
   @Deprecated('Use DiqitLogger.t() instead. Will be removed in v2.0.0')
-  static void trace(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, int? countMethod,
-    TraceId? traceId, Map<String, dynamic>? context,
-  }) => root.log(Level.trace, message, data: data, tag: tag,
-      traceId: traceId, context: context, shorthand: false,
-      countMethod: countMethod);
+  static void trace(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      root.log(Level.trace, message,
+          data: data,
+          tag: tag,
+          traceId: traceId,
+          context: context,
+          shorthand: false,
+          countMethod: countMethod);
 
   /// Canonical static shortcut for debug-level logging.
-  static void d(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, TraceId? traceId,
+  static void d(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => root.log(Level.debug, message, data: data, tag: tag,
-      traceId: traceId, context: context);
+  }) =>
+      root.log(Level.debug, message,
+          data: data, tag: tag, traceId: traceId, context: context);
 
   @Deprecated('Use DiqitLogger.d() instead. Will be removed in v2.0.0')
-  static void debug(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, int? countMethod,
-    TraceId? traceId, Map<String, dynamic>? context,
-  }) => root.log(Level.debug, message, data: data, tag: tag,
-      traceId: traceId, context: context, shorthand: false,
-      countMethod: countMethod);
+  static void debug(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      root.log(Level.debug, message,
+          data: data,
+          tag: tag,
+          traceId: traceId,
+          context: context,
+          shorthand: false,
+          countMethod: countMethod);
 
   /// Canonical static shortcut for info-level logging.
-  static void i(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, TraceId? traceId,
+  static void i(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => root.log(Level.info, message, data: data, tag: tag,
-      traceId: traceId, context: context);
+  }) =>
+      root.log(Level.info, message,
+          data: data, tag: tag, traceId: traceId, context: context);
 
   @Deprecated('Use DiqitLogger.i() instead. Will be removed in v2.0.0')
-  static void info(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, int? countMethod,
-    TraceId? traceId, Map<String, dynamic>? context,
-  }) => root.log(Level.info, message, data: data, tag: tag,
-      traceId: traceId, context: context, shorthand: false,
-      countMethod: countMethod);
+  static void info(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      root.log(Level.info, message,
+          data: data,
+          tag: tag,
+          traceId: traceId,
+          context: context,
+          shorthand: false,
+          countMethod: countMethod);
 
   /// Canonical static shortcut for warning-level logging.
-  static void w(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, TraceId? traceId,
+  static void w(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => root.log(Level.warning, message, data: data, tag: tag,
-      traceId: traceId, context: context);
+  }) =>
+      root.log(Level.warning, message,
+          data: data, tag: tag, traceId: traceId, context: context);
 
   @Deprecated('Use DiqitLogger.w() instead. Will be removed in v2.0.0')
-  static void warning(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    LogPrinter? printer, int? countMethod,
-    TraceId? traceId, Map<String, dynamic>? context,
-  }) => root.log(Level.warning, message, data: data, tag: tag,
-      traceId: traceId, context: context, shorthand: false,
-      countMethod: countMethod);
+  static void warning(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    LogPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      root.log(Level.warning, message,
+          data: data,
+          tag: tag,
+          traceId: traceId,
+          context: context,
+          shorthand: false,
+          countMethod: countMethod);
 
   /// Canonical static shortcut for error-level logging.
-  static void e(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    dynamic error, StackTrace? stackTrace,
-    LogPrinter? printer, TraceId? traceId,
+  static void e(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    LogPrinter? printer,
+    TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => root.log(Level.error, message, data: data, tag: tag,
-      error: error, stackTrace: stackTrace,
-      traceId: traceId, context: context);
+  }) =>
+      root.log(Level.error, message,
+          data: data,
+          tag: tag,
+          error: error,
+          stackTrace: stackTrace,
+          traceId: traceId,
+          context: context);
 
   @Deprecated('Use DiqitLogger.e() instead. Will be removed in v2.0.0')
-  static void error(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    dynamic error, StackTrace? stackTrace,
-    LogPrinter? printer, int? countMethod,
-    TraceId? traceId, Map<String, dynamic>? context,
-  }) => root.log(Level.error, message, data: data, tag: tag,
-      error: error, stackTrace: stackTrace,
-      traceId: traceId, context: context, shorthand: false,
-      countMethod: countMethod);
+  static void error(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    LogPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      root.log(Level.error, message,
+          data: data,
+          tag: tag,
+          error: error,
+          stackTrace: stackTrace,
+          traceId: traceId,
+          context: context,
+          shorthand: false,
+          countMethod: countMethod);
 
   /// Canonical static shortcut for fatal-level logging.
-  static void ft(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    dynamic error, StackTrace? stackTrace,
-    LogPrinter? printer, TraceId? traceId,
+  static void ft(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    LogPrinter? printer,
+    TraceId? traceId,
     Map<String, dynamic>? context,
-  }) => root.log(Level.fatal, message, data: data, tag: tag,
-      error: error, stackTrace: stackTrace,
-      traceId: traceId, context: context);
+  }) =>
+      root.log(Level.fatal, message,
+          data: data,
+          tag: tag,
+          error: error,
+          stackTrace: stackTrace,
+          traceId: traceId,
+          context: context);
 
   @Deprecated('Use DiqitLogger.ft() instead. Will be removed in v2.0.0')
-  static void fatal(String message, {
-    dynamic data, LogTag tag = LogTag.none,
-    dynamic error, StackTrace? stackTrace,
-    LogPrinter? printer, int? countMethod,
-    TraceId? traceId, Map<String, dynamic>? context,
-  }) => root.log(Level.fatal, message, data: data, tag: tag,
-      error: error, stackTrace: stackTrace,
-      traceId: traceId, context: context, shorthand: false,
-      countMethod: countMethod);
+  static void fatal(
+    String message, {
+    dynamic data,
+    LogTag tag = LogTag.none,
+    dynamic error,
+    StackTrace? stackTrace,
+    LogPrinter? printer,
+    int? countMethod,
+    TraceId? traceId,
+    Map<String, dynamic>? context,
+  }) =>
+      root.log(Level.fatal, message,
+          data: data,
+          tag: tag,
+          error: error,
+          stackTrace: stackTrace,
+          traceId: traceId,
+          context: context,
+          shorthand: false,
+          countMethod: countMethod);
 
   /// Logs a flow execution trace (uses debug level, function tag).
   @Deprecated(
@@ -746,8 +834,10 @@ class DiqitLogger {
     'Will be removed in v2.0.0',
   )
   static void flow({
-    Map<String, dynamic>? args, DPrettyPrinter? printer,
-    LogTag? tag, TraceId? traceId,
+    Map<String, dynamic>? args,
+    DPrettyPrinter? printer,
+    LogTag? tag,
+    TraceId? traceId,
     Map<String, dynamic>? context,
   }) {
     final stackTrace = StackTrace.current.toString().split('\n');
@@ -763,9 +853,13 @@ class DiqitLogger {
     }
     root.log(Level.debug, finalMessage,
         tag: tag ?? LogTag.custom('function'),
-        traceId: traceId, context: context);
+        traceId: traceId,
+        context: context);
   }
 
+  @Deprecated(
+    'Internal helper for flow(). Will be removed in v2.0.0',
+  )
   static String _extractFunctionName(String stackTraceLine) {
     if (stackTraceLine.isEmpty) return '';
     final regex = RegExp(r'#\d+\s+([^\s]+)');

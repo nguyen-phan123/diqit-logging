@@ -2,6 +2,7 @@
 import 'dart:io';
 
 import 'package:diqit_logging/diqit_logging.dart';
+import 'package:logger/logger.dart';
 import 'package:test/test.dart';
 
 LogEvent _makeEvent(Level level, String msg) => LogEvent(level, msg);
