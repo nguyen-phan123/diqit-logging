@@ -22,6 +22,9 @@ class LogTag {
   static const LogTag order = LogTag('ORDER');
   static const LogTag payment = LogTag('PAYMENT');
   static const LogTag printer = LogTag('PRINTER');
+  @Deprecated(
+    "Use LogTag.custom('KDS') instead. Will be removed in v2.0.0",
+  )
   static const LogTag kds = LogTag('KDS');
 
   factory LogTag.custom(String label) => LogTag(label);

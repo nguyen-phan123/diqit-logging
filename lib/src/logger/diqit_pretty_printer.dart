@@ -6,7 +6,6 @@ import 'package:logger/logger.dart';
 /// Provides factory constructors for quick setup:
 /// - [DPrettyPrinter.trace] - Full stack trace, for debugging complex flows.
 /// - [DPrettyPrinter.minimal] - Bare text only, for production/clean output.
-/// - [DPrettyPrinter.minimalAligned] - Minimal with padding for alignment.
 class DPrettyPrinter {
   // ---------------------------------------------------------------------------
   // Constants
@@ -96,6 +95,10 @@ class DPrettyPrinter {
   /// // MinimalAligned log
   ///    Session started  // 3 spaces padding
   /// ```
+  @Deprecated(
+    'Use DShorthandPrinter(enableColors: false) with manual padding. '
+    'Will be removed in v2.0.0',
+  )
   static LogPrinter minimalAligned({int paddingSize = 3}) {
     final inner = DPrettyPrinter.minimal();
     return _PaddingPrinter(inner, paddingSize: paddingSize);
