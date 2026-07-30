@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_constructors
+// ignore_for_file: prefer_const_constructors, deprecated_member_use_from_same_package
 import 'package:diqit_logging/diqit_logging.dart';
 import 'package:test/test.dart';
 

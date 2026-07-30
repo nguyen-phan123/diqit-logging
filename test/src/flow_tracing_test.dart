@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_constructors
+// ignore_for_file: prefer_const_constructors, deprecated_member_use_from_same_package
 import 'package:diqit_logging/diqit_logging.dart';
 import 'package:logger/logger.dart';
 import 'package:test/test.dart';
@@ -135,8 +135,7 @@ void main() {
   group('DiqitLogger.flow() - T3: Tag Filtering', () {
     test('flow logs are hidden when function tag is disabled', () async {
       // Arrange: disable 'function' tag
-      final config = LoggerConfig.development()
-          .withTagsDisabled(['function']);
+      final config = LoggerConfig.development().withTagsDisabled(['function']);
       await DiqitLogger.initialize(config);
 
       final historyBefore = DiqitLogger.getLogHistory().length;
@@ -151,8 +150,7 @@ void main() {
 
     test('flow logs appear when function tag is enabled', () async {
       // Arrange: explicitly enable 'function' tag
-      final config = LoggerConfig.development()
-          .withTagsEnabled(['function']);
+      final config = LoggerConfig.development().withTagsEnabled(['function']);
       await DiqitLogger.initialize(config);
 
       final historyBefore = DiqitLogger.getLogHistory().length;
@@ -165,7 +163,9 @@ void main() {
       expect(historyAfter, equals(historyBefore + 1)); // New log added
     });
 
-    test('flow logs are filtered out with searchTagPatterns set to different tag', () async {
+    test(
+        'flow logs are filtered out with searchTagPatterns set to different tag',
+        () async {
       // Arrange: only 'network' tag in search patterns
       final config = LoggerConfig.development(
         searchTagPatterns: ['network'],
@@ -225,8 +225,7 @@ void main() {
 
     test('can change filtering at runtime via updateConfig', () async {
       // Arrange: start with function tag disabled
-      final config1 = LoggerConfig.development()
-          .withTagsDisabled(['function']);
+      final config1 = LoggerConfig.development().withTagsDisabled(['function']);
       await DiqitLogger.initialize(config1);
 
       final historyBefore = DiqitLogger.getLogHistory().length;

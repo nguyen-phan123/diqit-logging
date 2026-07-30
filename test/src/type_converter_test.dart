@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_constructors
+// ignore_for_file: prefer_const_constructors, deprecated_member_use_from_same_package
 import 'package:diqit_logging/diqit_logging.dart';
 import 'package:test/test.dart';
 
@@ -137,7 +137,8 @@ void main() {
         (uri) => uri.host,
       );
 
-      DiqitLogger.i('API endpoint', data: Uri.parse('https://api.example.com/v1'));
+      DiqitLogger.i('API endpoint',
+          data: Uri.parse('https://api.example.com/v1'));
 
       final lastLog = DiqitLogger.getLogHistory().last;
       final logOutput = lastLog.lines.join('\n');

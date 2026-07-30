@@ -18,7 +18,7 @@ import 'package:logger/logger.dart';
 /// - **Singleton**: Global access via static methods.
 /// - **Tag Support**: Categorize logs with [LogTag].
 /// - **Dual Printers**: Short methods (e.g., [t], [d]) use a minimal printer;
-///   full methods (e.g., [trace], [debug]) use a detailed trace printer.
+///   full methods (e.g., `trace`, `debug`) use a detailed trace printer.
 /// - **File Logging**: Optional file logging configured via [initialize].
 /// - **Trace Propagation**: Zone-based trace ID inheritance via [runTraced].
 ///
@@ -87,12 +87,6 @@ class DiqitLogger {
     await root._initializeInternal(config);
   }
 
-  /// Creates a scoped logger with the given namespace [name].
-  ///
-  /// Scoped loggers carry a path header while dynamically delegating
-  /// configuration, type converters, and output sinks to [root].
-  static DiqitLogger scoped(String name) => root.createChild(name);
-
   /// Creates a child logger with the given namespace [name].
   ///
   /// Child loggers inherit the parent's configuration while building a
@@ -154,6 +148,10 @@ class DiqitLogger {
   /// Dynamically enables or disables console logging.
   ///
   /// Useful for toggling log output at runtime without re-initializing.
+  @Deprecated(
+    'Use LoggerConfig.copyWith(enableConsoleLogging:) + updateConfig(). '
+    'Will be removed in v2.0.0',
+  )
   static void setConsoleLogging(bool enabled) =>
       root._setConsoleLoggingInternal(enabled);
 
@@ -161,11 +159,13 @@ class DiqitLogger {
   ///
   /// The buffer size is limited. Useful for viewing logs inside the app
   /// (e.g. debug page).
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistory() => _globalBuffer.buffer.toList();
 
   /// Exports the recent logs as a formatted string.
   ///
   /// [lastN] - Optional: Limit to the last N lines.
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static String exportLogs({int? lastN}) {
     var entries = _globalBuffer.buffer.toList();
     if (lastN != null && entries.length > lastN) {
@@ -195,6 +195,7 @@ class DiqitLogger {
   /// ```dart
   /// DiqitLogger.clearLogHistory();
   /// ```
+  @Deprecated('Use NetworkOutput !clear command. Will be removed in v2.0.0')
   static void clearLogHistory() {
     root._clearLogHistoryInternal();
   }
@@ -231,6 +232,7 @@ class DiqitLogger {
   /// Unregister a type converter.
   ///
   /// Returns `true` if a converter was removed, `false` otherwise.
+  @Deprecated('Use registerConverter() to override. Will be removed in v2.0.0')
   static bool unregisterConverter<T>() {
     return root._typeConverterRegistry.unregister<T>();
   }
@@ -247,11 +249,19 @@ class DiqitLogger {
   ///
   /// Scoped to this instance — does NOT affect root or other instances.
   /// Use the static [registerConverter] for root-wide converters.
+  @Deprecated(
+    'Use static registerConverter() instead. '
+    'Will be removed in v2.0.0',
+  )
   void addConverter<T>(TypeConverter<T> converter) {
     _typeConverterRegistry.register<T>(converter);
   }
 
   /// Unregister a type converter on this logger instance.
+  @Deprecated(
+    'Use static registerConverter() to override. '
+    'Will be removed in v2.0.0',
+  )
   bool removeConverter<T>() {
     return _typeConverterRegistry.unregister<T>();
   }
@@ -315,6 +325,7 @@ class DiqitLogger {
   }
 
   /// Returns log history events specifically matching [traceId].
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistoryForTrace(String traceId) {
     final searchTag = '[$traceId]';
     return _globalBuffer.buffer.where((event) {
@@ -323,6 +334,7 @@ class DiqitLogger {
   }
 
   /// Exports formatted log entries matching [traceId].
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static String exportLogsForTrace(String traceId, {int? lastN}) {
     final searchTag = '[$traceId]';
     var entries = _globalBuffer.buffer.where((event) {
@@ -357,6 +369,7 @@ class DiqitLogger {
   /// ```dart
   /// final logs = DiqitLogger.getLogHistoryByContext('order_id', 'ORD-001');
   /// ```
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistoryByContext(
     String key,
     dynamic value,
@@ -376,6 +389,7 @@ class DiqitLogger {
   /// ```dart
   /// final gridLogs = DiqitLogger.getLogHistoryByPath('kds/order_grid');
   /// ```
+  @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistoryByPath(String path) {
     final searchTag = '[$path]';
     return _globalBuffer.buffer.where((event) {
@@ -502,22 +516,6 @@ class DiqitLogger {
     Map<String, dynamic>? context,
     String? path,
   }) {
-    if (this != root) {
-      root._log(
-        level,
-        message,
-        tag,
-        error,
-        stackTrace,
-        data: data,
-        printer: printer,
-        traceId: traceId,
-        context: context,
-        path: path ?? (_path.isEmpty ? null : _path),
-      );
-      return;
-    }
-
     if (!_initialized) {
       _config = LoggerConfig.development();
       _initialized = true;
@@ -540,6 +538,7 @@ class DiqitLogger {
       context: resolvedContext,
       path: path ?? (_path.isEmpty ? null : _path),
       source: ZoneTrace.sourceAppName,
+      prefix: _config.prefixMessage,
     );
 
     final targetLogger = printer != null
@@ -830,6 +829,10 @@ class DiqitLogger {
           countMethod: countMethod);
 
   /// Logs a flow execution trace (uses debug level, function tag).
+  @Deprecated(
+    'Use runTraced() + DiqitLogger.d() for automatic trace propagation. '
+    'Will be removed in v2.0.0',
+  )
   static void flow({
     Map<String, dynamic>? args,
     DPrettyPrinter? printer,
@@ -854,6 +857,9 @@ class DiqitLogger {
         context: context);
   }
 
+  @Deprecated(
+    'Internal helper for flow(). Will be removed in v2.0.0',
+  )
   static String _extractFunctionName(String stackTraceLine) {
     if (stackTraceLine.isEmpty) return '';
     final regex = RegExp(r'#\d+\s+([^\s]+)');
