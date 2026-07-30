@@ -32,6 +32,9 @@ class DiqitLogger {
   /// {@macro diqit_logging}
   DiqitLogger([this._path = '']);
 
+  /// Creates a scoped logger instance with the given namespace [path].
+  factory DiqitLogger.scoped(String path) => DiqitLogger(path);
+
   /// Shared in-memory buffer across all logger instances.
   static MemoryOutput _globalBuffer = MemoryOutput(bufferSize: 1000);
 
@@ -115,12 +118,23 @@ class DiqitLogger {
   }) {
     final printer = countMethod != null
         ? DPrettyPrinter.trace(
-            methodCount: countMethod, stackTraceBeginIndex: 0)
+            methodCount: countMethod,
+            stackTraceBeginIndex: 0,
+          )
         : shorthand
             ? _minimalPrinter
             : _tracePrinter;
-    _log(level, message, tag, error, stackTrace,
-        data: data, printer: printer, traceId: traceId, context: context);
+    _log(
+      level,
+      message,
+      tag,
+      error,
+      stackTrace,
+      data: data,
+      printer: printer,
+      traceId: traceId,
+      context: context,
+    );
   }
 
   // * --- Static Log API (backward compat) ---
@@ -516,6 +530,22 @@ class DiqitLogger {
     Map<String, dynamic>? context,
     String? path,
   }) {
+    if (this != root) {
+      root._log(
+        level,
+        message,
+        tag,
+        error,
+        stackTrace,
+        data: data,
+        printer: printer,
+        traceId: traceId,
+        context: context,
+        path: path ?? (_path.isEmpty ? null : _path),
+      );
+      return;
+    }
+
     if (!_initialized) {
       _config = LoggerConfig.development();
       _initialized = true;
@@ -538,7 +568,6 @@ class DiqitLogger {
       context: resolvedContext,
       path: path ?? (_path.isEmpty ? null : _path),
       source: ZoneTrace.sourceAppName,
-      prefix: _config.prefixMessage,
     );
 
     final targetLogger = printer != null
@@ -888,10 +917,24 @@ class _InlineFilter extends LogFilter {
     if (event.message is DLogMessage) {
       final msg = event.message as DLogMessage;
       if (msg.tag == LogTag.none) return !hasSearchPatterns;
-      return config.isTagEnabled(msg.tag);
+      if (!config.isTagEnabled(msg.tag)) return false;
+    } else {
+      if (hasSearchPatterns) return false;
     }
 
-    return !hasSearchPatterns;
+    final hasTracePatterns =
+        config.traceIdPatterns != null && config.traceIdPatterns!.isNotEmpty;
+    if (!hasTracePatterns) return true;
+
+    if (event.message is DLogMessage) {
+      final msg = event.message as DLogMessage;
+      final traceId = msg.traceId;
+      if (traceId == null) return false;
+      final traceStr = traceId.toString();
+      return config.traceIdPatterns!.any(traceStr.contains);
+    }
+
+    return false;
   }
 }
 

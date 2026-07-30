@@ -1,5 +1,6 @@
 import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
+import 'package:diqit_logging/src/logger/row_printer.dart';
 import 'package:logger/logger.dart';
 
 typedef LogTagFilter = bool Function(LogTag tag);
@@ -21,9 +22,11 @@ class LoggerConfig {
   final Set<LogTag> disabledTags;
   final LogPrinter printer;
   final LogOutput? output;
+  @Deprecated('Use appName instead')
   final String prefixMessage;
   final bool allowCustomTags;
   final List<String>? searchTagPatterns;
+  final List<String>? traceIdPatterns;
   final String? appName;
 
   LoggerConfig({
@@ -37,43 +40,64 @@ class LoggerConfig {
     Set<LogTag>? disabledTags,
     LogPrinter? printer,
     this.output,
-    this.prefixMessage = '',
+    @Deprecated('Use appName instead') String prefixMessage = '',
     this.allowCustomTags = false,
     this.searchTagPatterns,
-    this.appName,
-  })  : enabledTags = enabledTags ?? Set.from(LogTag.values),
+    this.traceIdPatterns,
+    String? appName,
+  })  : prefixMessage = prefixMessage,
+        appName = _resolveAppName(appName, prefixMessage),
+        enabledTags = enabledTags ?? Set.from(LogTag.values),
         disabledTags = disabledTags ?? {},
-        printer = printer ?? _defaultPrinter(prefixMessage);
+        printer = printer ?? _defaultPrinter();
+
+  static String? _resolveAppName(String? appName, String prefixMessage) {
+    if (appName != null && appName.isNotEmpty) return appName;
+    if (prefixMessage.isEmpty) return null;
+    var cleaned = prefixMessage.trim();
+    if (cleaned.startsWith('[')) cleaned = cleaned.substring(1);
+    if (cleaned.endsWith(']')) {
+      cleaned = cleaned.substring(0, cleaned.length - 1);
+    }
+    return cleaned.trim().isNotEmpty ? cleaned.trim() : null;
+  }
 
   // ---------------------------------------------------------------------------
   // Factory Constructors
   // ---------------------------------------------------------------------------
 
-  /// Development config: verbose, all tags, trace printer.
+  /// Development config: verbose, all tags, row-based printer.
   factory LoggerConfig.development({
     String? logDirectory,
-    String prefixMessage = '',
+    @Deprecated('Use appName instead') String prefixMessage = '',
     LogLevel? minLogLevel,
     List<String>? searchTagPatterns,
     String? appName,
+    LogPrinter? printer,
   }) {
     const envTag = String.fromEnvironment('LOG_TAGS', defaultValue: '');
+    const envTrace = String.fromEnvironment('LOG_TRACE', defaultValue: '');
 
     final resolvedPatterns = searchTagPatterns ??
         (envTag.isNotEmpty
             ? envTag.split(',').map((e) => e.trim()).toList()
             : null);
 
+    final resolvedTracePatterns = envTrace.isNotEmpty
+        ? envTrace.split(',').map((e) => e.trim()).toList()
+        : null;
+
     return LoggerConfig(
-      minLogLevel: minLogLevel ?? LogLevel.debug,
+      minLogLevel: minLogLevel ?? LogLevel.trace,
       enableConsoleLogging: true,
       enableFileLogging: false,
       logDirectory: logDirectory,
       enabledTags: Set.from(LogTag.values),
-      printer: _tracePrinter(prefixMessage),
+      printer: printer ?? RowPrinter(),
       prefixMessage: prefixMessage,
       allowCustomTags: true,
       searchTagPatterns: resolvedPatterns,
+      traceIdPatterns: resolvedTracePatterns,
       appName: appName,
     );
   }
@@ -81,9 +105,10 @@ class LoggerConfig {
   /// Production config: warnings+, critical tags only, file logging enabled.
   factory LoggerConfig.production({
     String? logDirectory,
-    String prefixMessage = '',
+    @Deprecated('Use appName instead') String prefixMessage = '',
     List<String>? searchTagPatterns,
     String? appName,
+    LogPrinter? printer,
   }) {
     return LoggerConfig(
       minLogLevel: LogLevel.warning,
@@ -91,7 +116,7 @@ class LoggerConfig {
       enableFileLogging: true,
       logDirectory: logDirectory,
       enabledTags: _productionTags,
-      printer: _defaultPrinter(prefixMessage),
+      printer: printer ?? RowPrinter(enableColors: false),
       prefixMessage: prefixMessage,
       allowCustomTags: false,
       searchTagPatterns: searchTagPatterns,
@@ -195,6 +220,7 @@ class LoggerConfig {
     LogOutput? output,
     String? prefixMessage,
     bool? allowCustomTags,
+    List<String>? traceIdPatterns,
     String? appName,
   }) {
     final newPrefix = prefixMessage ?? this.prefixMessage;
@@ -205,17 +231,16 @@ class LoggerConfig {
       minLogLevel: minLogLevel ?? this.minLogLevel,
       enableConsoleLogging: enableConsoleLogging ?? this.enableConsoleLogging,
       enableFileLogging: enableFileLogging ?? this.enableFileLogging,
-      enableNetworkLogging:
-          enableNetworkLogging ?? this.enableNetworkLogging,
+      enableNetworkLogging: enableNetworkLogging ?? this.enableNetworkLogging,
       networkPort: networkPort ?? this.networkPort,
       logDirectory: logDirectory ?? this.logDirectory,
       enabledTags: enabledTags ?? this.enabledTags,
       disabledTags: disabledTags ?? this.disabledTags,
-      printer: printer ??
-          (prefixChanged ? _defaultPrinter(newPrefix) : this.printer),
+      printer: printer ?? this.printer,
       output: output ?? this.output,
       prefixMessage: newPrefix,
       allowCustomTags: allowCustomTags ?? this.allowCustomTags,
+      traceIdPatterns: traceIdPatterns ?? this.traceIdPatterns,
       appName: appName ?? this.appName,
     );
   }
@@ -224,15 +249,9 @@ class LoggerConfig {
   // Private Helpers
   // ---------------------------------------------------------------------------
 
-  static LogPrinter _defaultPrinter(String prefix) =>
-      DPrettyPrinter.minimal();
-
-  static LogPrinter _tracePrinter(String prefix) =>
-      DPrettyPrinter.trace();
+  static LogPrinter _defaultPrinter() => DPrettyPrinter.row();
 
   static final Set<LogTag> _productionTags = {
-    LogTag.payment,
-    LogTag.order,
     LogTag.network,
     LogTag.sync,
     LogTag.database,

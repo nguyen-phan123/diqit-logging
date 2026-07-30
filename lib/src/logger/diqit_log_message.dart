@@ -26,6 +26,11 @@ class DLogMessage {
     this.source,
   });
 
+  String? get formattedData {
+    if (data == null) return null;
+    return _formatData(data, typeConverterRegistry);
+  }
+
   @override
   String toString() {
     final buffer = StringBuffer();

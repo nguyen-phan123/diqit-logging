@@ -1,4 +1,6 @@
 import 'dart:io';
+
+import 'package:diqit_logging/src/logger/row_printer.dart';
 import 'package:logger/logger.dart';
 
 /// Custom PrettyPrinter with preset configurations for common use cases.
@@ -39,12 +41,12 @@ class DPrettyPrinter {
   /// - error: ❗ (exclamation)
   /// - fatal: 💀 (skull)
   static const Map<Level, String> mixedEmojis = {
-    Level.trace: '▫',
-    Level.debug: '▪',
-    Level.info: 'ℹ',
-    Level.warning: '⚡',
-    Level.error: '❗',
-    Level.fatal: '💀',
+    Level.trace: 'T',
+    Level.debug: 'D',
+    Level.info: 'I',
+    Level.warning: 'W',
+    Level.error: 'E',
+    Level.fatal: 'F',
   };
 
   /// Whether ANSI colors are supported on this platform.
@@ -82,6 +84,9 @@ class DPrettyPrinter {
   static LogPrinter compactMixed() => DShorthandPrinter();
 
   static LogPrinter minimal() => DShorthandPrinter(enableColors: false);
+
+  static LogPrinter row({bool enableColors = true}) =>
+      RowPrinter(enableColors: enableColors);
 
   /// Minimal printer with alignment padding.
   ///
