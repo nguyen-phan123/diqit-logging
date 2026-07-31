@@ -2,61 +2,97 @@
 
 Provides structured, zone-based diagnostic logging and distributed correlation across mobile POS applications.
 
-A log line answers three orthogonal questions — **where**, **which flow**, and **what data**:
+A log line answers four orthogonal questions — **where**, **which module**, **which flow**, and **what data**:
 
 | Question | Concept | Example |
 |----------|---------|---------|
 | Where (layer)? | LogTag | `NETWORK`, `BLOC`, `UI` |
+| Which module? | Scoped Path | `kds/order_grid` |
 | Which flow? | TraceId | `#order-12345` |
 | What entity? | Loggable | `{uuid: abc, total: $45}` |
 
 ## Language
 
+### Core Facade & Configuration
+
 **DiqitLogger**:
-The central logging entrypoint that unifies console printing, file logging, and trace correlation. Acts as a static facade delegating to the single source of truth `root` instance. Supports lightweight scoped/child loggers (`DiqitLogger('namespace')` or `DiqitLogger.scoped('namespace')`) that carry a path header while dynamically delegating configuration, type converters, and output sinks to `root`.
+A static facade over a singleton root logger instance that manages centralized configuration and log dispatch across mobile POS apps.
 _Avoid_: Logger instance, Log manager, Print service
 
+**Scoped Logger**:
+A lightweight child logger instance bound to a specific namespace path that delegates configuration, converters, and outputs dynamically to the root logger.
+_Avoid_: Child logger, Sub-logger, Local logger
+
+**Scoped Path**:
+A hierarchical namespace string (e.g. `kds/order_grid`) identifying the feature module or component producing a log event.
+_Avoid_: Namespace header, Log path, Category path, Subsystem string
 
 **LoggerConfig**:
-The configuration blueprint governing log levels, tag filters, file output paths, and visual formatting rules for the logger. Uses `appName` as the canonical application identity (deprecates `prefixMessage`).
+An immutable configuration blueprint governing log levels, tag filters, file outputs, network streaming, and visual formatting. Uses `appName` as the canonical application identity.
 _Avoid_: Log options, Printer settings, Logger params
 
+**LogSinkPipeline**:
+An internal deep module that manages the initialization, configuration updates, and lifecycle for all log output sinks (Console, File, Network WebSocket, Memory Buffer).
+_Avoid_: Output manager, Sink handler, Multi-output controller
+
+
+### Architectural Taxonomy & Tracing
+
 **LogTag**:
-A categorization label identifying the architectural layer or subsystem producing the log (e.g. `NETWORK`, `BLOC`, `UI`, `MQTT`). Used for coarse filtering — show me only network logs, hide all UI logs. Orthogonal to TraceId (which answers "which operation flow").
+An architectural layer label (e.g. `NETWORK`, `BLOC`, `UI`, `MQTT`) used for coarse log filtering across application layers.
 _Avoid_: Log category, Event module, Domain tag
 
 **TraceId**:
-A typed unique identifier for tracing a logical business operation across async boundaries and network hops. Created via factories: `TraceId.manual(group, num)` for explicit external IDs, `TraceId.auto(group)` for auto-incrementing per-group counters, or `TraceId.global()` for a shared counter. Supports suffix chaining (`withSuffix`) for retries and fallback paths. Orthogonal to LogTag (which answers "which layer").
+A typed unique identifier for correlating a logical business operation across async boundaries and network hops.
 _Avoid_: Correlation ID, Request UUID, Trace string
 
 **ZoneTrace**:
-An execution context powered by Dart `Zone` that carries a stack of `TraceId` values, enabling nested traces and automatic propagation across futures, streams, and event boundaries. Logs within a traced zone automatically inherit the current trace stack without manual parameter passing. Also carries source identity for cross-app attribution and provides Socket.IO metadata transport via `injectTraceId` / `extractTraceId`.
+A Dart `Zone` execution context carrying a stack of `TraceId` values for nested trace propagation across futures, streams, and socket boundaries.
 _Avoid_: TraceZone, Logger scope, Request context, Thread local
 
+### Structured Data Protocol
+
 **Loggable**:
-A mixin protocol enabling domain entities to define their structured log representation via `toLoggableMap()`. DiqitLogger automatically detects and formats objects implementing this protocol, producing readable key-value output instead of opaque `toString()` results.
+A mixin protocol enabling domain entities to define a key-value map representation for structured log formatting.
 _Avoid_: Serializable, LoggableObject, DebugPrintable
 
 **TypeConverter**:
-A registry-based formatting mechanism for third-party types (DateTime, Duration, Uri) that cannot implement the Loggable mixin. Registered via `DiqitLogger.registerConverter<T>()`, converters provide human-readable string representation for common types without modifying their source code.
+A registered formatting callback for third-party types (e.g. DateTime, Duration, Uri) that cannot implement the Loggable mixin.
 _Avoid_: Type formatter, Custom serializer, Value printer
 
-**Log History**:
-An in-memory rolling buffer of formatted log events maintained for real-time inspection and on-device debugging. Supports filtering by trace ID via `getLogHistoryForTrace`.
-_Avoid_: Log cache, Memory store, Event queue
+**DLogMessage**:
+The internal log envelope carrying a raw log string along with its tag, trace ID, path, context metadata, and structured data payload.
+_Avoid_: Log payload, Log record, Event envelope
+
+### Console Rendering Engine
+
+**RowPrinter**:
+The canonical console printer that formats log events into a single-line header followed by indented payload lines using composable elements.
+_Avoid_: Shorthand printer, Line printer, Pretty printer, DShorthandPrinter
+
+**LogElement**:
+A composable visual building block evaluated against a rendering context to construct specific components of a console log line.
+_Avoid_: Log chunk, Printer segment, Format component
+
+### Remote Observability & WebSockets
 
 **NetworkOutput**:
-A bi-directional `LogOutput` implementation that starts an internal WebSocket server on a configurable port, streaming formatted log lines to connected clients and accepting Log Commands from them. On connect, dumps the full Log History (up to 1000 events) then streams new events live. Designed for remote debugging — a developer connects with the `diqit-socket-logger` TUI or `websocat ws://<device-ip>:9229` to observe logs in real time without physical device access. Server-side only; enabled via `LoggerConfig.enableNetworkLogging`.
+A `LogOutput` implementation that runs a local WebSocket server to stream log events and accept interactive Log Commands.
 _Avoid_: WebSocket output, Remote logger, Socket stream
 
 **Log Command**:
-A plain-text directive sent from a WebSocket CLI client (e.g. `diqit-socket-logger`) to NetworkOutput requesting a server-side action. Recognized by a `!` prefix (e.g. `!clear`, `!copy`, `!help`). Processed inline alongside log streaming on the same socket connection — no separate control channel needed.
+A text directive (e.g. `!clear`, `!copy`, `!help`) sent from a WebSocket client to NetworkOutput to request a server-side action.
 _Avoid_: WebSocket command, Control message, Remote instruction
 
+**Log History**:
+An in-memory rolling buffer of formatted log events retained for real-time inspection, filtering, and WebSocket dumps.
+_Avoid_: Log cache, Memory store, Event queue
+
 **Clear (Log History)**:
-The action of resetting the in-memory Log History buffer to empty, discarding all buffered events. A global operation — all connected clients see the buffer drain on next status dump. Triggered via the `!clear` Log Command.
+The action of emptying the in-memory Log History buffer across all connected clients via `!clear`.
 _Avoid_: Flush buffer, Reset history, Purge logs
 
 **Copy (Export to Client)**:
-The action of sending a formatted text dump of the current Log History to the requesting WebSocket client, delimited with markers so the developer can capture it from their terminal and paste into external tools. Triggered via the `!copy` Log Command. Not an OS clipboard operation — the server emits the text; the client captures it.
+The action of streaming a delimited dump of the current Log History to a requesting WebSocket client via `!copy`.
 _Avoid_: Clipboard, Paste buffer, Snapshot
+

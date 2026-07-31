@@ -4,10 +4,11 @@ version: 0.1.0+1
 publish_to: none
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=2.19.6 <4.0.0"
 
 dependencies:
   logger: ^2.6.2
+  collection: ^1.18.0
 
 dev_dependencies:
   mocktail: ^1.0.4

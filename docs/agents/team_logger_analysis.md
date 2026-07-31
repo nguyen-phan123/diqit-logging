@@ -369,5 +369,3 @@ class BumpUseCase {
 4. ⏳ Add tests for trace inheritance
 5. ⏳ Update AGENTS.md với trace conventions
 6. ⏳ Demo trong KDS: wrap order bump flow
-
-Chủ công muốn tao proceed với Phase 1 implementation không?
