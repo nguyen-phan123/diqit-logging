@@ -1,7 +1,24 @@
 import 'dart:convert';
 
-import 'package:diqit_logging/src/logger/diqit_log_message.dart';
+import 'package:diqit_logging/src/logger/message/diqit_log_message.dart';
 import 'package:logger/logger.dart';
+
+abstract class LogAnsiColor {
+  static const reset = '\x1B[0m';
+  static const dim = '\x1B[38;5;242m';
+  static const error = '\x1B[38;5;196m';
+
+  static const Map<Level, String> levelColors = {
+    Level.trace: '\x1B[38;5;244m',
+    Level.debug: '\x1B[38;5;14m',
+    Level.info: '\x1B[38;5;12m',
+    Level.warning: '\x1B[38;5;208m',
+    Level.error: '\x1B[38;5;196m',
+    Level.fatal: '\x1B[38;5;199m',
+  };
+
+  static String forLevel(Level level) => levelColors[level] ?? '';
+}
 
 class LogRenderContext {
   final DLogMessage message;
@@ -19,6 +36,7 @@ class LogRenderContext {
   });
 }
 
+// ignore: one_member_abstracts
 abstract class LogElement {
   const LogElement();
 
@@ -28,13 +46,12 @@ abstract class LogElement {
 class LogNumElement extends LogElement {
   const LogNumElement();
 
-  static const _dimColor = '\x1B[38;5;242m';
-  static const _resetColor = '\x1B[0m';
-
   @override
   String build(LogRenderContext ctx) {
-    final text = '#${ctx.sequenceNum}';
-    return ctx.isColorEnabled ? '$_dimColor$text$_resetColor' : text;
+    final text = '(${ctx.sequenceNum})';
+    if (!ctx.isColorEnabled) return text;
+    final color = LogAnsiColor.forLevel(ctx.level);
+    return '$color$text${LogAnsiColor.reset}';
   }
 }
 
@@ -42,39 +59,25 @@ class LogLevelElement extends LogElement {
   const LogLevelElement();
 
   static const _chars = <Level, String>{
-    Level.trace: 'T',
-    Level.debug: 'D',
-    Level.info: 'I',
-    Level.warning: 'W',
-    Level.error: 'E',
-    Level.fatal: 'F',
+    Level.trace: '[t]',
+    Level.debug: '[d]',
+    Level.info: '[i]',
+    Level.warning: '[w]',
+    Level.error: '[e]',
+    Level.fatal: '[f]',
   };
-
-  static const _colors = <Level, String>{
-    Level.trace: '\x1B[38;5;244m',
-    Level.debug: '\x1B[38;5;14m',
-    Level.info: '\x1B[38;5;12m',
-    Level.warning: '\x1B[38;5;208m',
-    Level.error: '\x1B[38;5;196m',
-    Level.fatal: '\x1B[38;5;199m',
-  };
-
-  static const _resetColor = '\x1B[0m';
 
   @override
   String build(LogRenderContext ctx) {
-    final char = _chars[ctx.level] ?? '?';
+    final char = _chars[ctx.level] ?? '[?]';
     if (!ctx.isColorEnabled) return char;
-    final color = _colors[ctx.level] ?? '';
-    return '$color$char$_resetColor';
+    final color = LogAnsiColor.forLevel(ctx.level);
+    return '$color$char${LogAnsiColor.reset}';
   }
 }
 
 class LogTimeElement extends LogElement {
   const LogTimeElement();
-
-  static const _dimColor = '\x1B[38;5;240m';
-  static const _resetColor = '\x1B[0m';
 
   @override
   String build(LogRenderContext ctx) {
@@ -82,16 +85,16 @@ class LogTimeElement extends LogElement {
     final h = t.hour.toString().padLeft(2, '0');
     final m = t.minute.toString().padLeft(2, '0');
     final s = t.second.toString().padLeft(2, '0');
-    final text = '$h:$m:$s';
-    return ctx.isColorEnabled ? '$_dimColor$text$_resetColor' : text;
+    final ms = t.millisecond.toString().padLeft(3, '0');
+    final text = '$h:$m:$s.$ms';
+    if (!ctx.isColorEnabled) return text;
+    final color = LogAnsiColor.forLevel(ctx.level);
+    return '$color$text${LogAnsiColor.reset}';
   }
 }
 
 class LogPathElement extends LogElement {
   const LogPathElement();
-
-  static const _dimColor = '\x1B[38;5;242m';
-  static const _resetColor = '\x1B[0m';
 
   @override
   String build(LogRenderContext ctx) {
@@ -117,38 +120,28 @@ class LogPathElement extends LogElement {
     if (parts.isEmpty) return '';
 
     final text = '[${parts.join('/')}]';
-    return ctx.isColorEnabled ? '$_dimColor$text$_resetColor' : text;
+    if (!ctx.isColorEnabled) return text;
+    final color = LogAnsiColor.forLevel(ctx.level);
+    return '$color$text${LogAnsiColor.reset}';
   }
 }
 
 class LogTraceIdElement extends LogElement {
   const LogTraceIdElement();
 
-  static const _dimColor = '\x1B[38;5;242m';
-  static const _resetColor = '\x1B[0m';
-
   @override
   String build(LogRenderContext ctx) {
     final traceId = ctx.message.traceId;
     if (traceId == null) return '';
     final text = '{$traceId}';
-    return ctx.isColorEnabled ? '$_dimColor$text$_resetColor' : text;
+    if (!ctx.isColorEnabled) return text;
+    final color = LogAnsiColor.forLevel(ctx.level);
+    return '$color$text${LogAnsiColor.reset}';
   }
 }
 
 class LogMessageElement extends LogElement {
   const LogMessageElement();
-
-  static const _colors = <Level, String>{
-    Level.trace: '\x1B[38;5;244m',
-    Level.debug: '\x1B[38;5;14m',
-    Level.info: '\x1B[38;5;12m',
-    Level.warning: '\x1B[38;5;208m',
-    Level.error: '\x1B[38;5;196m',
-    Level.fatal: '\x1B[38;5;199m',
-  };
-
-  static const _resetColor = '\x1B[0m';
 
   @override
   String build(LogRenderContext ctx) {
@@ -169,7 +162,7 @@ class LogMessageElement extends LogElement {
 
     final text = buf.toString();
     if (!ctx.isColorEnabled) return text;
-    final color = _colors[ctx.level] ?? '';
-    return '$color$text$_resetColor';
+    final color = LogAnsiColor.forLevel(ctx.level);
+    return '$color$text${LogAnsiColor.reset}';
   }
 }

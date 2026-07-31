@@ -1,69 +1,67 @@
+/// Represents high-level architectural layers or major domain subsystems.
+///
+/// LogTag is used for coarse-grained log filtering across the system.
+/// For fine-grained component, widget, or file locality, use scoped child
+/// loggers via `logger.createChild('module/submodule')` instead of creating
+/// new LogTags.
 class LogTag {
   final String label;
 
   const LogTag(this.label);
 
-  // * --- Special ---
-
-  /// Empty tag for untagged logs.
   static const LogTag none = LogTag('');
 
-  // * --- Architectural Layers ---
-  // Where the log originates in the app architecture.
+  // Layers
+  static const LogTag ui = LogTag('ui');
+  static const LogTag bloc = LogTag('bloc');
+  static const LogTag state = LogTag('state');
+  static const LogTag usecase = LogTag('usecase');
+  static const LogTag repository = LogTag('repository');
+  static const LogTag network = LogTag('network');
+  static const LogTag database = LogTag('database');
+  static const LogTag mqtt = LogTag('mqtt');
 
-  /// UI layer (widgets, screens).
-  static const LogTag ui = LogTag('UI');
-
-  /// BLoC/Cubit state management.
-  static const LogTag bloc = LogTag('BLOC');
-
-  /// State management (other patterns).
-  static const LogTag state = LogTag('STATE');
-
-  /// Use case / business logic.
-  static const LogTag usecase = LogTag('USECASE');
-
-  /// Data repository layer.
-  static const LogTag repository = LogTag('REPO');
-
-  /// HTTP/API network calls.
-  static const LogTag network = LogTag('NETWORK');
-
-  /// Local database operations.
-  static const LogTag database = LogTag('DB');
-
-  /// MQTT protocol operations.
-  static const LogTag mqtt = LogTag('MQTT');
-
-  // * --- Domain Features ---
-  // What business domain the log relates to.
-
-  /// Route/screen navigation.
+  // Features / Domain Subsystems (Deprecated: use logger.createChild)
+  @Deprecated(
+    'Use logger.createChild("navigation") for scoped module path instead. '
+    'Will be removed in v2.0.0.',
+  )
   static const LogTag navigation = LogTag('NAV');
 
-  /// App events (lifecycle, user actions).
+  @Deprecated(
+    'Use logger.createChild("event") for scoped module path instead. '
+    'Will be removed in v2.0.0.',
+  )
   static const LogTag event = LogTag('EVENT');
 
-  /// Data synchronization.
   static const LogTag sync = LogTag('SYNC');
 
-  /// Order management.
+  @Deprecated(
+    'Use logger.createChild("order") for scoped module path instead. '
+    'Will be removed in v2.0.0.',
+  )
   static const LogTag order = LogTag('ORDER');
 
-  /// Payment processing.
+  @Deprecated(
+    'Use logger.createChild("payment") for scoped module path instead. '
+    'Will be removed in v2.0.0.',
+  )
   static const LogTag payment = LogTag('PAYMENT');
 
-  /// Receipt printing.
+  @Deprecated(
+    'Use logger.createChild("printer") for scoped module path instead. '
+    'Will be removed in v2.0.0.',
+  )
   static const LogTag printer = LogTag('PRINTER');
 
   @Deprecated(
-    "Use LogTag.custom('KDS') instead. Will be removed in v2.0.0",
+    'Use logger.createChild("kds") for scoped module path instead. '
+    'Will be removed in v2.0.0.',
   )
   static const LogTag kds = LogTag('KDS');
 
   factory LogTag.custom(String label) => LogTag(label);
 
-  /// All predefined tags used as default enabled tags in LoggerConfig.
   static const List<LogTag> values = [
     none,
     ui,
@@ -73,13 +71,20 @@ class LogTag {
     repository,
     network,
     database,
-    mqtt,
+    // ignore: deprecated_member_use_from_same_package
     navigation,
+    // ignore: deprecated_member_use_from_same_package
     event,
     sync,
+    // ignore: deprecated_member_use_from_same_package
     order,
+    // ignore: deprecated_member_use_from_same_package
     payment,
+    // ignore: deprecated_member_use_from_same_package
     printer,
+    mqtt,
+    // ignore: deprecated_member_use_from_same_package
+    kds,
   ];
 
   @override

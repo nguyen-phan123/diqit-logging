@@ -1,6 +1,7 @@
-import 'package:diqit_logging/src/logger/diqit_log_message.dart';
-import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
+import 'dart:io';
+
 import 'package:diqit_logging/src/logger/log_element.dart';
+import 'package:diqit_logging/src/logger/message/diqit_log_message.dart';
 import 'package:logger/logger.dart';
 
 class RowPrinter extends LogPrinter {
@@ -11,6 +12,17 @@ class RowPrinter extends LogPrinter {
   static int _seqCounter = 0;
 
   static final _ansiRegex = RegExp('\x1B\\[[0-9;]*m');
+
+  /// Whether ANSI colors are supported on this platform.
+  static final bool isColorSupported = _detectColorSupport();
+
+  static bool _detectColorSupport() {
+    if (Platform.isIOS) return false;
+    return Platform.isWindows ||
+        Platform.isLinux ||
+        Platform.isMacOS ||
+        Platform.isAndroid;
+  }
 
   RowPrinter({
     List<LogElement> children = const [
@@ -33,7 +45,7 @@ class RowPrinter extends LogPrinter {
     final msg = event.message;
     if (msg is! DLogMessage) return [msg.toString()];
 
-    final isColorEnabled = _enableColors && DPrettyPrinter.isColorSupported;
+    final isColorEnabled = _enableColors && isColorSupported;
     final time = DateTime.now();
     final ctx = LogRenderContext(
       message: msg,
@@ -70,7 +82,7 @@ class RowPrinter extends LogPrinter {
       if (formatted != null) {
         for (final line in formatted.split('\n').where((l) => l.isNotEmpty)) {
           if (isColorEnabled) {
-            result.add('$indent\x1B[38;5;242m$line\x1B[0m');
+            result.add('$indent${LogAnsiColor.dim}$line${LogAnsiColor.reset}');
           } else {
             result.add('$indent$line');
           }
@@ -80,7 +92,8 @@ class RowPrinter extends LogPrinter {
 
     if (event.error != null) {
       if (isColorEnabled) {
-        result.add('$indent\x1B[38;5;196mError: ${event.error}\x1B[0m');
+        result.add(
+            '$indent${LogAnsiColor.error}Error: ${event.error}${LogAnsiColor.reset}');
       } else {
         result.add('$indent Error: ${event.error}');
       }
@@ -90,7 +103,7 @@ class RowPrinter extends LogPrinter {
       for (final line in event.stackTrace.toString().split('\n')) {
         if (line.isNotEmpty) {
           if (isColorEnabled) {
-            result.add('$indent\x1B[38;5;242m$line\x1B[0m');
+            result.add('$indent${LogAnsiColor.dim}$line${LogAnsiColor.reset}');
           } else {
             result.add('$indent$line');
           }

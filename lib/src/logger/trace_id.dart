@@ -14,6 +14,7 @@
 /// final trace4 = trace1.withSuffix('retry');     // #payment-42.retry
 /// ```
 /// {@endtemplate}
+// ignore: one_member_abstracts
 abstract class TraceId {
   /// {@macro trace_id}
   const TraceId._();
@@ -106,7 +107,7 @@ class _AutoTraceId extends TraceId {
   static final Map<String, _LazyCounter> _counters = {};
 
   static _LazyCounter _getCounter(String group) =>
-      _counters.putIfAbsent(group, () => _LazyCounter());
+      _counters.putIfAbsent(group, _LazyCounter.new);
 
   @override
   TraceId withSuffix(String suffix) => _AutoTraceId(group, suffix).._num = _num;

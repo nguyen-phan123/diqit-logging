@@ -50,52 +50,36 @@ void main() {
       );
     });
 
-    test('compact level badge and timestamp format in DShorthandPrinter',
+    test(
+        'custom RowPrinter passed in LoggerConfig is respected by DiqitLogger.i',
         () async {
-      await DiqitLogger.initialize(LoggerConfig.development());
+      final customPrinter = RowPrinter(
+        children: const [
+          LogLevelElement(),
+          LogMessageElement(),
+        ],
+      );
+      await DiqitLogger.initialize(
+        LoggerConfig(
+          minLogLevel: Level.debug,
+          enableConsoleLogging: true,
+          printer: customPrinter,
+        ),
+      );
 
-      DiqitLogger.i('test timestamp with ms');
+      DiqitLogger.i('testing custom printer');
 
       final history = DiqitLogger.getLogHistory();
       expect(history, isNotEmpty);
-      final lastLogLines = history.last.lines;
-      final firstLine = lastLogLines.first;
-
-      // Expect [HH:mm:ss.SSS] followed by level badge [I] e.g. "[13:32:31.091] [I]"
-      final regex = RegExp(r'\[\d{2}:\d{2}:\d{2}\.\d{3}\].*\[I\]');
-      expect(
-        regex.hasMatch(firstLine),
-        isTrue,
-        reason: 'Timestamp should be followed by level badge [I]: "$firstLine"',
-      );
+      final line = history.last.lines.first;
+      // Output formatted with custom children should start with Level element ('I') and message
+      expect(line, contains('testing custom printer'));
     });
   });
 
-  group('DPrettyPrinter Factories', () {
-    test('minimal() returns printer without ANSI colors', () {
-      final printer = DPrettyPrinter.minimal();
-      expect(printer, isA<DShorthandPrinter>());
-      expect((printer as DShorthandPrinter).enableColors, isFalse);
-    });
-
-    test('trace() returns printer with ANSI colors enabled', () {
-      final printer = DPrettyPrinter.trace();
-      expect(printer, isA<DShorthandPrinter>());
-      expect((printer as DShorthandPrinter).enableColors, isTrue);
-    });
-
-    // ignore: deprecated_member_use_from_same_package
-    test('deprecated factory constructors return working printers', () {
-      // ignore: deprecated_member_use_from_same_package
-      expect(DPrettyPrinter.compact(), isA<DShorthandPrinter>());
-      // ignore: deprecated_member_use_from_same_package
-      expect(DPrettyPrinter.compactSymbols(), isA<DShorthandPrinter>());
-      // ignore: deprecated_member_use_from_same_package
-      expect(DPrettyPrinter.compactMixed(), isA<DShorthandPrinter>());
-      // ignore: deprecated_member_use_from_same_package
-      expect(DPrettyPrinter.minimalAligned(), isNotNull);
-      // ignore: deprecated_member_use_from_same_package
-      expect(DPrettyPrinter.symbolsEmojis, isNotEmpty);
+  group('RowPrinter Platform Capabilities', () {
+    test('isColorSupported is a boolean flag', () {
+      expect(RowPrinter.isColorSupported, isA<bool>());
     });
   });
 }

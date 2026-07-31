@@ -37,9 +37,9 @@ void main() {
       expect(step3Lines.isNotEmpty, true);
 
       // All should contain the trace ID
-      expect(step1Lines.any((l) => l.contains('[#login-1001]')), true);
-      expect(step2Lines.any((l) => l.contains('[#login-1001]')), true);
-      expect(step3Lines.any((l) => l.contains('[#login-1001]')), true);
+      expect(step1Lines.any((l) => l.contains('{#login-1001}')), true);
+      expect(step2Lines.any((l) => l.contains('{#login-1001}')), true);
+      expect(step3Lines.any((l) => l.contains('{#login-1001}')), true);
     });
 
     test('auto trace generates unique IDs', () async {
@@ -69,8 +69,8 @@ void main() {
       expect(req2Lines.isNotEmpty, true);
 
       // Both should have req- prefix but different numbers
-      expect(req1Lines.any((l) => l.contains('[#req-')), true);
-      expect(req2Lines.any((l) => l.contains('[#req-')), true);
+      expect(req1Lines.any((l) => l.contains('{#req-')), true);
+      expect(req2Lines.any((l) => l.contains('{#req-')), true);
 
       // Extract trace IDs and verify they're different
       final trace1 = _extractTraceId(req1Lines.first);
@@ -105,9 +105,9 @@ void main() {
       final backLines =
           logLines.where((l) => l.contains('Back to outer')).toList();
 
-      expect(outerLines.any((l) => l.contains('[#outer-1]')), true);
-      expect(innerLines.any((l) => l.contains('[#outer-1 > #inner-2]')), true);
-      expect(backLines.any((l) => l.contains('[#outer-1]')), true);
+      expect(outerLines.any((l) => l.contains('{#outer-1}')), true);
+      expect(innerLines.any((l) => l.contains('{#outer-1 > #inner-2}')), true);
+      expect(backLines.any((l) => l.contains('{#outer-1}')), true);
     });
 
     test('explicit traceId overrides zone trace', () async {
@@ -131,9 +131,9 @@ void main() {
       final zoneLine2 =
           logLines.where((l) => l.contains('Back to zone trace')).toList();
 
-      expect(zoneLine1.any((l) => l.contains('[#zone-100]')), true);
-      expect(explicitLine.any((l) => l.contains('[#explicit-200]')), true);
-      expect(zoneLine2.any((l) => l.contains('[#zone-100]')), true);
+      expect(zoneLine1.any((l) => l.contains('{#zone-100}')), true);
+      expect(explicitLine.any((l) => l.contains('{#explicit-200}')), true);
+      expect(zoneLine2.any((l) => l.contains('{#zone-100}')), true);
     });
 
     test('runTracedSync works for synchronous code', () {
@@ -153,8 +153,8 @@ void main() {
       final step2Lines =
           logLines.where((l) => l.contains('Sync step 2')).toList();
 
-      expect(step1Lines.any((l) => l.contains('[#sync-1]')), true);
-      expect(step2Lines.any((l) => l.contains('[#sync-1]')), true);
+      expect(step1Lines.any((l) => l.contains('{#sync-1}')), true);
+      expect(step2Lines.any((l) => l.contains('{#sync-1}')), true);
     });
 
     test('trace with suffix', () async {
@@ -170,7 +170,7 @@ void main() {
 
       final orderLines =
           logLines.where((l) => l.contains('Processing order')).toList();
-      expect(orderLines.any((l) => l.contains('[#order-12345.retry]')), true);
+      expect(orderLines.any((l) => l.contains('{#order-12345.retry}')), true);
     });
 
     test('real-world scenario: KDS bump flow', () async {
@@ -180,19 +180,10 @@ void main() {
         TraceId.manual('bump', 001),
         () async {
           DiqitLogger.i('Bump initiated', tag: LogTag.custom('kds.bump'));
-
-          // Simulate socket emit
-          await Future<void>.delayed(Duration(milliseconds: 5));
           DiqitLogger.d('Socket: emit bump_order',
               tag: LogTag.custom('socket'));
-
-          // Simulate API call
-          await Future<void>.delayed(Duration(milliseconds: 10));
           DiqitLogger.d('API: POST /orders/bump', tag: LogTag.custom('api'));
-
-          // Simulate UI update
-          DiqitLogger.i('UI: Order removed from grid',
-              tag: LogTag.custom('ui'));
+          DiqitLogger.i('UI: Order removed from grid', tag: LogTag.ui);
         },
         context: {'order_id': 'ORD-001'},
       );
@@ -211,7 +202,7 @@ void main() {
 
       expect(bumpLines.length >= 4, true);
       for (final line in bumpLines) {
-        expect(line.contains('[#bump-1]'), true);
+        expect(line.contains('{#bump-1}'), true);
         expect(line.contains('"order_id":"ORD-001"'), true);
       }
     });
@@ -240,9 +231,9 @@ void main() {
       final traceId = _extractTraceId(log1Lines.first);
       expect(traceId.isNotEmpty, true);
 
-      expect(log1Lines.any((l) => l.contains('[$traceId]')), true);
-      expect(log2Lines.any((l) => l.contains('[$traceId]')), true);
-      expect(log3Lines.any((l) => l.contains('[$traceId]')), true);
+      expect(log1Lines.any((l) => l.contains('{$traceId}')), true);
+      expect(log2Lines.any((l) => l.contains('{$traceId}')), true);
+      expect(log3Lines.any((l) => l.contains('{$traceId}')), true);
     });
 
     test('context filter: entity-based query independent of trace', () async {
@@ -357,22 +348,21 @@ void main() {
         (l) => l.contains('child_path_trace_ctx_test'),
         orElse: () => '',
       );
-      expect(bumpLine, contains('[kds.bump]'));
-      expect(bumpLine, contains('[kds]'));
-      expect(bumpLine, contains('[#bump-1]'));
+      expect(bumpLine, contains('kds.bump'));
+      expect(bumpLine, contains('kds'));
+      expect(bumpLine, contains('{#bump-1}'));
       expect(bumpLine, contains('"order_id":"ORD-001"'));
     });
   });
 }
 
-/// Extract trace ID from log line (format: [trace-id])
+/// Extract trace ID from log line (format: {trace-id})
 String _extractTraceId(String logLine) {
   // Strip ANSI color codes first
   final stripped = logLine.replaceAll(RegExp(r'\x1B\[[0-9;]*m'), '');
 
-  // Match trace ID pattern: [#word-number], [#number], or [#word-number > #word-number]
-  // Skip timestamp brackets like [11:46:22] by excluding colons
-  final match = RegExp(r'\[(#?[a-z0-9][\w\-\s>\.]*)\]', caseSensitive: false)
+  // Match trace ID pattern: {#word-number}, {#number}, or {#word-number > #word-number}
+  final match = RegExp(r'\{(#?[a-z0-9][\w\-\s>\.]*)\}', caseSensitive: false)
       .firstMatch(stripped);
   return match?.group(1) ?? '';
 }

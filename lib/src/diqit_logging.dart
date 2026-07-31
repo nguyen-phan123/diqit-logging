@@ -1,13 +1,7 @@
-import 'dart:io';
-
-import 'package:diqit_logging/src/logger/diqit_log_message.dart';
-import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
-import 'package:diqit_logging/src/logger/log_tag.dart';
-import 'package:diqit_logging/src/logger/logger_config.dart';
-import 'package:diqit_logging/src/logger/network_output.dart';
-import 'package:diqit_logging/src/logger/safe_console_output.dart';
+import 'package:diqit_logging/diqit_logging.dart';
+import 'package:diqit_logging/src/logger/output/log_sink_pipeline.dart';
+import 'package:diqit_logging/src/logger/output/network_output.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
-import 'package:diqit_logging/src/logger/type_converter.dart';
 import 'package:diqit_logging/src/logger/zone_trace.dart';
 import 'package:logger/logger.dart';
 
@@ -36,7 +30,7 @@ class DiqitLogger {
   factory DiqitLogger.scoped(String path) => DiqitLogger(path);
 
   /// Shared in-memory buffer across all logger instances.
-  static MemoryOutput _globalBuffer = MemoryOutput(bufferSize: 1000);
+  static MemoryOutput get _globalBuffer => root._sinkPipeline.buffer;
 
   /// The default root logger instance for static convenience API.
   static final DiqitLogger root = DiqitLogger._();
@@ -46,20 +40,15 @@ class DiqitLogger {
   bool _initialized = false;
   final String _path;
 
-  // * --- internal Logger Instance ---
+  // * --- Internal Logger & Sink Pipeline ---
   Logger? _activeLogger;
-
-  // * --- Output State ---
-  AdvancedFileOutput? _fileOutput;
-  NetworkOutput? _networkOutput;
+  final LogSinkPipeline _sinkPipeline = LogSinkPipeline();
 
   /// The active network output, if network logging is enabled.
-  NetworkOutput? get networkOutput => _networkOutput;
+  NetworkOutput? get networkOutput => _sinkPipeline.networkOutput;
 
   // * --- Helpers ---
   final _typeConverterRegistry = TypeConverterRegistry();
-  final _minimalPrinter = DShorthandPrinter();
-  final _tracePrinter = DPrettyPrinter.trace();
 
   DiqitLogger._() : _path = '' {
     ZoneTrace.onError = _onZoneTraceError;
@@ -113,17 +102,10 @@ class DiqitLogger {
     StackTrace? stackTrace,
     TraceId? traceId,
     Map<String, dynamic>? context,
-    bool shorthand = true,
+    LogPrinter? printer,
     int? countMethod,
   }) {
-    final printer = countMethod != null
-        ? DPrettyPrinter.trace(
-            methodCount: countMethod,
-            stackTraceBeginIndex: 0,
-          )
-        : shorthand
-            ? _minimalPrinter
-            : _tracePrinter;
+    final customPrinter = countMethod != null ? RowPrinter() : printer;
     _log(
       level,
       message,
@@ -131,7 +113,7 @@ class DiqitLogger {
       error,
       stackTrace,
       data: data,
-      printer: printer,
+      printer: customPrinter,
       traceId: traceId,
       context: context,
     );
@@ -341,18 +323,20 @@ class DiqitLogger {
   /// Returns log history events specifically matching [traceId].
   @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static List<OutputEvent> getLogHistoryForTrace(String traceId) {
-    final searchTag = '[$traceId]';
+    final searchTag = '{$traceId}';
     return _globalBuffer.buffer.where((event) {
-      return event.lines.any((line) => line.contains(searchTag));
+      return event.lines
+          .any((line) => line.contains(searchTag) || line.contains(traceId));
     }).toList();
   }
 
   /// Exports formatted log entries matching [traceId].
   @Deprecated('Use NetworkOutput for live streaming. Will be removed in v2.0.0')
   static String exportLogsForTrace(String traceId, {int? lastN}) {
-    final searchTag = '[$traceId]';
+    final searchTag = '{$traceId}';
     var entries = _globalBuffer.buffer.where((event) {
-      return event.lines.any((line) => line.contains(searchTag));
+      return event.lines
+          .any((line) => line.contains(searchTag) || line.contains(traceId));
     }).toList();
 
     if (lastN != null && entries.length > lastN) {
@@ -419,9 +403,10 @@ class DiqitLogger {
     _config = config;
     _initialized = true;
 
-    await _initializeFileOutput(config);
-
-    await _initializeNetworkOutput(config);
+    await _sinkPipeline.initialize(
+      config,
+      onClearHistory: _clearLogHistoryInternal,
+    );
 
     _activeLogger = _createLoggerInstance();
 
@@ -458,9 +443,10 @@ class DiqitLogger {
 
     _config = config;
 
-    await _initializeFileOutput(config);
-
-    await _initializeNetworkOutput(config);
+    await _sinkPipeline.updateConfig(
+      config,
+      onClearHistory: _clearLogHistoryInternal,
+    );
 
     _activeLogger = _createLoggerInstance();
 
@@ -475,7 +461,7 @@ class DiqitLogger {
   }
 
   void _clearLogHistoryInternal() {
-    _globalBuffer = MemoryOutput(bufferSize: 1000);
+    _sinkPipeline.clearHistory();
     _activeLogger = _createLoggerInstance();
   }
 
@@ -484,36 +470,10 @@ class DiqitLogger {
     LogPrinter? printer,
     LogFilter? filter,
   }) {
-    final outputs = <LogOutput>[];
-
-    if (_config.enableConsoleLogging) {
-      outputs.add(SafeConsoleOutput());
-    }
-
-    if (_config.output != null) {
-      outputs.add(_config.output!);
-    }
-
-    // Always add memory output for history
-    outputs.add(_globalBuffer);
-
-    // Add file output if enabled and initialized
-    if (_fileOutput != null && _config.enableFileLogging) {
-      outputs.add(_fileOutput!);
-    }
-
-    // Add network output if enabled and initialized
-    if (_networkOutput != null && _config.enableNetworkLogging) {
-      outputs.add(_networkOutput!);
-    }
-
-    var finalPrinter = printer ?? _config.printer;
-
-    return Logger(
-      level: Level.all, // Filter decides
-      filter: filter ?? _InlineFilter(_config),
-      printer: finalPrinter,
-      output: MultiOutput(outputs),
+    return _sinkPipeline.createLogger(
+      _config,
+      printer: printer,
+      filter: filter,
     );
   }
 
@@ -599,62 +559,6 @@ class DiqitLogger {
     return _CompositeTraceId(stack);
   }
 
-  /// Initializes file logging output based on config.
-  Future<void> _initializeFileOutput(LoggerConfig config) async {
-    _fileOutput = null;
-    if (!config.enableFileLogging) return;
-
-    final logDir = config.logDirectory;
-    if (logDir == null) {
-      print('[DiqitLogger] File logging enabled but no logDirectory provided.');
-      return;
-    }
-
-    try {
-      final directory = Directory(logDir);
-      if (!directory.existsSync()) {
-        await directory.create(recursive: true);
-      }
-
-      final separator = Platform.pathSeparator;
-      final cleanPath =
-          logDir.endsWith(separator) ? logDir : '$logDir$separator';
-
-      _fileOutput = AdvancedFileOutput(
-        path: '${cleanPath}diqit_logs.log',
-        maxFileSizeKB: 1024,
-      );
-
-      print('File logging initialized at ${cleanPath}diqit_logs.log');
-    } catch (e) {
-      print('Failed to initialize file logging: $e');
-      _fileOutput = null;
-    }
-  }
-
-  /// Initializes network output (WebSocket server) based on config.
-  Future<void> _initializeNetworkOutput(LoggerConfig config) async {
-    await _networkOutput?.stop();
-    _networkOutput = null;
-
-    if (!config.enableNetworkLogging) return;
-
-    try {
-      _networkOutput = NetworkOutput(port: config.networkPort);
-      await _networkOutput!.start(
-        bufferGetter: () => _globalBuffer.buffer.toList(),
-        onClear: _clearLogHistoryInternal,
-      );
-      print(
-        '[DiqitLogger] Log stream available at ws://0.0.0.0:'
-        '${config.networkPort}',
-      );
-    } catch (e) {
-      print('[DiqitLogger] Failed to start network output: $e');
-      _networkOutput = null;
-    }
-  }
-
   /// Canonical static shortcut for trace-level logging.
   static void t(
     String message, {
@@ -665,7 +569,11 @@ class DiqitLogger {
     Map<String, dynamic>? context,
   }) =>
       root.log(Level.trace, message,
-          data: data, tag: tag, traceId: traceId, context: context);
+          data: data,
+          tag: tag,
+          printer: printer,
+          traceId: traceId,
+          context: context);
 
   @Deprecated('Use DiqitLogger.t() instead. Will be removed in v2.0.0')
   static void trace(
@@ -680,9 +588,9 @@ class DiqitLogger {
       root.log(Level.trace, message,
           data: data,
           tag: tag,
+          printer: printer,
           traceId: traceId,
           context: context,
-          shorthand: false,
           countMethod: countMethod);
 
   /// Canonical static shortcut for debug-level logging.
@@ -695,7 +603,11 @@ class DiqitLogger {
     Map<String, dynamic>? context,
   }) =>
       root.log(Level.debug, message,
-          data: data, tag: tag, traceId: traceId, context: context);
+          data: data,
+          tag: tag,
+          printer: printer,
+          traceId: traceId,
+          context: context);
 
   @Deprecated('Use DiqitLogger.d() instead. Will be removed in v2.0.0')
   static void debug(
@@ -710,9 +622,9 @@ class DiqitLogger {
       root.log(Level.debug, message,
           data: data,
           tag: tag,
+          printer: printer,
           traceId: traceId,
           context: context,
-          shorthand: false,
           countMethod: countMethod);
 
   /// Canonical static shortcut for info-level logging.
@@ -725,7 +637,11 @@ class DiqitLogger {
     Map<String, dynamic>? context,
   }) =>
       root.log(Level.info, message,
-          data: data, tag: tag, traceId: traceId, context: context);
+          data: data,
+          tag: tag,
+          printer: printer,
+          traceId: traceId,
+          context: context);
 
   @Deprecated('Use DiqitLogger.i() instead. Will be removed in v2.0.0')
   static void info(
@@ -740,9 +656,9 @@ class DiqitLogger {
       root.log(Level.info, message,
           data: data,
           tag: tag,
+          printer: printer,
           traceId: traceId,
           context: context,
-          shorthand: false,
           countMethod: countMethod);
 
   /// Canonical static shortcut for warning-level logging.
@@ -755,7 +671,11 @@ class DiqitLogger {
     Map<String, dynamic>? context,
   }) =>
       root.log(Level.warning, message,
-          data: data, tag: tag, traceId: traceId, context: context);
+          data: data,
+          tag: tag,
+          printer: printer,
+          traceId: traceId,
+          context: context);
 
   @Deprecated('Use DiqitLogger.w() instead. Will be removed in v2.0.0')
   static void warning(
@@ -770,9 +690,9 @@ class DiqitLogger {
       root.log(Level.warning, message,
           data: data,
           tag: tag,
+          printer: printer,
           traceId: traceId,
           context: context,
-          shorthand: false,
           countMethod: countMethod);
 
   /// Canonical static shortcut for error-level logging.
@@ -791,6 +711,7 @@ class DiqitLogger {
           tag: tag,
           error: error,
           stackTrace: stackTrace,
+          printer: printer,
           traceId: traceId,
           context: context);
 
@@ -811,9 +732,9 @@ class DiqitLogger {
           tag: tag,
           error: error,
           stackTrace: stackTrace,
+          printer: printer,
           traceId: traceId,
           context: context,
-          shorthand: false,
           countMethod: countMethod);
 
   /// Canonical static shortcut for fatal-level logging.
@@ -832,6 +753,7 @@ class DiqitLogger {
           tag: tag,
           error: error,
           stackTrace: stackTrace,
+          printer: printer,
           traceId: traceId,
           context: context);
 
@@ -852,9 +774,9 @@ class DiqitLogger {
           tag: tag,
           error: error,
           stackTrace: stackTrace,
+          printer: printer,
           traceId: traceId,
           context: context,
-          shorthand: false,
           countMethod: countMethod);
 
   /// Logs a flow execution trace (uses debug level, function tag).
@@ -864,7 +786,7 @@ class DiqitLogger {
   )
   static void flow({
     Map<String, dynamic>? args,
-    DPrettyPrinter? printer,
+    LogPrinter? printer,
     LogTag? tag,
     TraceId? traceId,
     Map<String, dynamic>? context,

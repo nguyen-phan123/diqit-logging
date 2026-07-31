@@ -28,7 +28,9 @@ void main() {
 
     group('Static Shortcuts (Canonical API)', () {
       setUp(() async {
-        await DiqitLogger.initialize(LoggerConfig.development());
+        await DiqitLogger.initialize(
+          LoggerConfig.development(minLogLevel: Level.trace),
+        );
       });
 
       test('t() logs trace level', () {
@@ -70,7 +72,9 @@ void main() {
 
     group('Instance Shortcuts (Extension)', () {
       setUp(() async {
-        await DiqitLogger.initialize(LoggerConfig.development());
+        await DiqitLogger.initialize(
+          LoggerConfig.development(minLogLevel: Level.trace),
+        );
       });
 
       test('instance.t() logs trace level', () {

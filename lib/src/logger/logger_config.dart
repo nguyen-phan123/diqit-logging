@@ -1,7 +1,6 @@
-import 'package:diqit_logging/src/logger/diqit_pretty_printer.dart';
-import 'package:diqit_logging/src/logger/log_tag.dart';
-import 'package:diqit_logging/src/logger/row_printer.dart';
 import 'package:logger/logger.dart';
+
+import 'package:diqit_logging/diqit_logging.dart';
 
 typedef LogTagFilter = bool Function(LogTag tag);
 typedef LogLevel = Level;
@@ -249,7 +248,7 @@ class LoggerConfig {
   // Private Helpers
   // ---------------------------------------------------------------------------
 
-  static LogPrinter _defaultPrinter() => DPrettyPrinter.row();
+  static LogPrinter _defaultPrinter() => RowPrinter();
 
   static final Set<LogTag> _productionTags = {
     LogTag.network,

@@ -1,9 +1,9 @@
 import 'dart:convert';
 
+import 'package:diqit_logging/src/logger/converter/loggable.dart';
+import 'package:diqit_logging/src/logger/converter/type_converter.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
-import 'package:diqit_logging/src/logger/loggable.dart';
 import 'package:diqit_logging/src/logger/trace_id.dart';
-import 'package:diqit_logging/src/logger/type_converter.dart';
 
 class DLogMessage {
   final String message;

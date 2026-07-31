@@ -40,9 +40,7 @@ class NetworkOutput extends LogOutput {
           return;
         }
 
-        WebSocketTransformer.upgrade(req).then((ws) {
-          _handleClient(ws);
-        });
+        WebSocketTransformer.upgrade(req).then(_handleClient);
       },
       onError: (Object error) {
         stderr.writeln('NetworkOutput error: $error');
@@ -121,8 +119,8 @@ class NetworkOutput extends LogOutput {
   void _startMdns() {
     _mdnsSocket?.close();
     try {
-      RawDatagramSocket.bind(InternetAddress.anyIPv4, 0,
-          reuseAddress: true).then((RawDatagramSocket socket) {
+      RawDatagramSocket.bind(InternetAddress.anyIPv4, 0, reuseAddress: true)
+          .then((RawDatagramSocket socket) {
         _mdnsSocket = socket;
         _announceMdns(socket, ttl: 120);
       }).catchError((_) {
@@ -220,8 +218,8 @@ class NetworkOutput extends LogOutput {
     _addBytes(buf, rdata);
   }
 
-  static void _addSrv(BytesBuilder buf, String instance, String target,
-      int port, int ttl) {
+  static void _addSrv(
+      BytesBuilder buf, String instance, String target, int port, int ttl) {
     _addDnsName(buf, instance);
     _addBytes(buf, _u16(33)); // TYPE = SRV
     _addBytes(buf, _u16(0x8001)); // CLASS = IN, cache-flush

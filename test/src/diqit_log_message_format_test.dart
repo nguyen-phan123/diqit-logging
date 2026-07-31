@@ -1,4 +1,4 @@
-import 'package:diqit_logging/src/logger/diqit_log_message.dart';
+import 'package:diqit_logging/src/logger/message/diqit_log_message.dart';
 import 'package:diqit_logging/src/logger/log_tag.dart';
 import 'package:test/test.dart';
 
