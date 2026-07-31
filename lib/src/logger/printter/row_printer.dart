@@ -73,9 +73,7 @@ class RowPrinter extends LogPrinter {
 
     final result = <String>[firstLine];
 
-    final indentSize =
-        prefixParts.isEmpty ? 0 : _stripAnsi(prefixStr).length + 1;
-    final indent = ' ' * indentSize;
+    const indent = '  ';
 
     if (msg.data != null) {
       final formatted = msg.formattedData;
@@ -112,9 +110,5 @@ class RowPrinter extends LogPrinter {
     }
 
     return result;
-  }
-
-  String _stripAnsi(String str) {
-    return str.replaceAll(_ansiRegex, '');
   }
 }
