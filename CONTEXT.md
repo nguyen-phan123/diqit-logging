@@ -74,6 +74,9 @@ _Avoid_: Shorthand printer, Line printer, Pretty printer, DShorthandPrinter
 A composable visual building block evaluated against a rendering context to construct specific components of a console log line.
 _Avoid_: Log chunk, Printer segment, Format component
 
+**LogFunctionElement**:
+A `LogElement` implementation in `diqit-logging` that extracts and renders caller function/method details in `{ClassName.methodName}` or `{functionName}` format into the console log header, positioned between `LogPathElement` and `LogTraceIdElement`.
+
 ### Remote Observability & WebSockets
 
 **NetworkOutput**:

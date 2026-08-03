@@ -11,8 +11,6 @@ class RowPrinter extends LogPrinter {
 
   static int _seqCounter = 0;
 
-  static final _ansiRegex = RegExp('\x1B\\[[0-9;]*m');
-
   /// Whether ANSI colors are supported on this platform.
   static final bool isColorSupported = _detectColorSupport();
 
@@ -30,6 +28,7 @@ class RowPrinter extends LogPrinter {
       LogLevelElement(),
       LogTimeElement(),
       LogPathElement(),
+      LogFunctionElement(),
       LogTraceIdElement(),
       LogMessageElement(),
     ],
@@ -53,6 +52,7 @@ class RowPrinter extends LogPrinter {
       timestamp: time,
       sequenceNum: _seqCounter,
       isColorEnabled: isColorEnabled,
+      stackTrace: event.stackTrace,
     );
 
     final prefixParts = <String>[];

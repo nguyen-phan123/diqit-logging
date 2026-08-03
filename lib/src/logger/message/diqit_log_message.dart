@@ -14,6 +14,7 @@ class DLogMessage {
   final Map<String, dynamic>? context;
   final String? path;
   final String? source;
+  final String? member;
 
   const DLogMessage({
     required this.message,
@@ -24,6 +25,7 @@ class DLogMessage {
     this.context,
     this.path,
     this.source,
+    this.member,
   });
 
   String? get formattedData {

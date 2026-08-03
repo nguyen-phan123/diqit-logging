@@ -26,6 +26,8 @@ class LogRenderContext {
   final DateTime timestamp;
   final int sequenceNum;
   final bool isColorEnabled;
+  final String? member;
+  final StackTrace? stackTrace;
 
   const LogRenderContext({
     required this.message,
@@ -33,6 +35,8 @@ class LogRenderContext {
     required this.timestamp,
     required this.sequenceNum,
     required this.isColorEnabled,
+    this.member,
+    this.stackTrace,
   });
 }
 
@@ -164,5 +168,52 @@ class LogMessageElement extends LogElement {
     if (!ctx.isColorEnabled) return text;
     final color = LogAnsiColor.forLevel(ctx.level);
     return '$color$text${LogAnsiColor.reset}';
+  }
+}
+
+class LogFunctionElement extends LogElement {
+  final String? fallbackMember;
+
+  const LogFunctionElement({this.fallbackMember});
+
+  @override
+  String build(LogRenderContext ctx) {
+    final rawMember = ctx.message.member ??
+        ctx.member ??
+        _extractMember(ctx.stackTrace) ??
+        fallbackMember;
+
+    if (rawMember == null || rawMember.isEmpty) return '';
+
+    final memberText = rawMember.startsWith('{') && rawMember.endsWith('}')
+        ? rawMember
+        : '{$rawMember}';
+
+    if (!ctx.isColorEnabled) return memberText;
+    final color = LogAnsiColor.forLevel(ctx.level);
+    return '$color$memberText${LogAnsiColor.reset}';
+  }
+
+  static String? _extractMember(StackTrace? stackTrace) {
+    if (stackTrace == null) return null;
+    final lines = stackTrace.toString().split('\n');
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+
+      final match = RegExp(r'#\d+\s+([^\s()]+)').firstMatch(trimmed);
+      if (match != null) {
+        final symbol = match.group(1);
+        if (symbol != null &&
+            !symbol.contains('RowPrinter') &&
+            !symbol.contains('DiqitLogger') &&
+            !symbol.contains('Logger') &&
+            !symbol.contains('LogFunctionElement') &&
+            !symbol.contains('LogElement')) {
+          return symbol;
+        }
+      }
+    }
+    return null;
   }
 }
