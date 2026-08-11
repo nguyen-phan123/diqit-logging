@@ -11,12 +11,11 @@ import 'package:logger/logger.dart';
 class SafeConsoleOutput extends LogOutput {
   /// Maximum characters per [print] call before splitting.
   ///
-  /// Default 800 conservatively stays under the ~1024 char limit
-  /// on Android/iOS [dart:developer] [log] while accounting for
-  /// ANSI escape sequences in the output.
+  /// Default 4096 fits verbose log messages (such as HTTP requests/responses)
+  /// in a single console print call without splitting into chunks.
   final int chunkSize;
 
-  SafeConsoleOutput({this.chunkSize = 800});
+  SafeConsoleOutput({this.chunkSize = 4096});
 
   @override
   void output(OutputEvent event) {
